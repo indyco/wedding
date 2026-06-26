@@ -1,14 +1,46 @@
+/* ============================================================================
+   Candlelit Cathedral — a gothic / gothic-fantasy theme.
+   Warm near-black stone, brass candlelight, blood-wine, and parchment.
+   All decorative assets are same-origin SVG (CSP img-src 'self') — no CDNs.
+   ========================================================================== */
+
 :root {
-  --blush: #f7f1ec;
-  --cream: #fffdfb;
-  --ink: #3b3530;
-  --muted: #8a7f76;
-  --rose: #b08968;
-  --rose-dark: #8c6a4f;
-  --line: #e7ddd4;
-  --ok: #4f7a52;
-  --err: #b4534b;
-  --shadow: 0 10px 40px rgba(80, 60, 40, 0.12);
+  /* Surfaces */
+  --bg: #14110f;          /* page: warm near-black */
+  --bg-2: #1b1714;        /* sunken surface (admin field wells) */
+  --card: #1e1813;        /* card / panel surface */
+  --card-2: #241d16;      /* raised surface (inputs, rows) */
+
+  /* Ink */
+  --ink: #ece3d4;         /* parchment text */
+  --muted: #ab9a85;       /* aged gold-grey (AA on dark surfaces) */
+
+  /* Accents */
+  --wine: #7b1e26;
+  --wine-dark: #5e161c;
+  --wine-bright: #9c2a33;
+  --brass: #c2a14d;
+  --brass-bright: #d8bd6e;
+
+  /* Lines */
+  --line: #3a2f28;
+  --line-2: #4d3f30;
+
+  /* Status (tuned for dark backgrounds) */
+  --ok: #9ccf96;
+  --ok-bg: #1d2a1b;
+  --ok-line: #2f4a2a;
+  --err: #e88f86;
+  --err-bg: #2c1815;
+  --err-line: #5e2a25;
+
+  /* Effects */
+  --shadow: 0 18px 50px rgba(0, 0, 0, 0.6);
+  --glow: 0 0 18px rgba(194, 161, 77, 0.28);
+
+  /* Type */
+  --serif: Georgia, "Iowan Old Style", "Times New Roman", serif;
+  --display: "Cinzel", "Trajan Pro", Georgia, serif; /* drop a self-hosted woff2 later to upgrade */
 }
 
 * { box-sizing: border-box; }
@@ -16,10 +48,17 @@
 body {
   margin: 0;
   color: var(--ink);
-  background: var(--blush);
-  font-family: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+  background:
+    radial-gradient(130% 90% at 50% -10%, #20191400 0%, transparent 55%),
+    radial-gradient(120% 100% at 50% -8%, #221a14, var(--bg) 60%, #100d0b 100%);
+  background-attachment: fixed;
+  font-family: var(--serif);
   line-height: 1.5;
 }
+
+::selection { background: rgba(194, 161, 77, 0.3); color: #fff; }
+a { color: var(--brass-bright); text-decoration: none; }
+a:hover { color: var(--brass); }
 
 /* Visually-hidden honeypot */
 .hp {
@@ -30,43 +69,69 @@ body {
   overflow: hidden;
 }
 
+/* ---------------- Buttons ---------------- */
 button {
   font: inherit;
   cursor: pointer;
-  border: none;
-  border-radius: 8px;
-  padding: 0.6rem 1.1rem;
-  background: var(--rose);
-  color: #fff;
-  transition: background 0.15s ease;
+  border: 1px solid rgba(194, 161, 77, 0.5);
+  border-radius: 10px;
+  padding: 0.6rem 1.15rem;
+  color: #f7efe1;
+  letter-spacing: 0.3px;
+  background: linear-gradient(180deg, var(--wine-bright), var(--wine) 55%, var(--wine-dark));
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
 }
-button:hover { background: var(--rose-dark); }
-button.secondary { background: #efe7df; color: var(--ink); }
-button.secondary:hover { background: #e4d9cd; }
-button.danger { background: #efe7df; color: var(--err); }
-button:disabled { opacity: 0.5; cursor: not-allowed; }
+button:hover { background: linear-gradient(180deg, #a83039, #7c1f27); box-shadow: var(--glow), 0 2px 0 rgba(0, 0, 0, 0.45); }
+button:active { transform: translateY(1px); }
+button.secondary {
+  background: linear-gradient(180deg, #2b231b, #211a14);
+  color: var(--ink);
+  border-color: var(--line-2);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+button.secondary:hover { background: linear-gradient(180deg, #342a20, #271f17); color: var(--brass-bright); box-shadow: none; }
+button.danger { background: #2a1714; color: var(--err); border-color: var(--err-line); box-shadow: none; }
+button.danger:hover { background: #341a16; color: #f0a39b; box-shadow: none; }
+button:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
 
+/* ---------------- Form controls ---------------- */
 input, textarea, select {
   font: inherit;
   width: 100%;
   padding: 0.55rem 0.7rem;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-2);
   border-radius: 8px;
-  background: #fff;
+  background: var(--card-2);
   color: var(--ink);
 }
+input::placeholder, textarea::placeholder { color: #7e715f; }
 label { display: block; font-size: 0.92rem; color: var(--muted); margin-bottom: 0.25rem; }
 .field { margin-bottom: 1rem; }
 .row { display: flex; gap: 0.6rem; flex-wrap: wrap; }
 .row > * { flex: 1; }
 
-.notice { padding: 0.7rem 0.9rem; border-radius: 8px; margin-bottom: 1rem; }
-.notice.error { background: #fbecea; color: var(--err); }
-.notice.info { background: #eef3ec; color: var(--ok); }
+/* Brass candlelight focus ring everywhere */
+:focus-visible { outline: none; }
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  border-color: var(--brass);
+  box-shadow: 0 0 0 3px rgba(194, 161, 77, 0.25);
+}
+button:focus-visible { box-shadow: 0 0 0 3px rgba(194, 161, 77, 0.4); }
+.tabs button:focus-visible, .stepper-btn:focus-visible { box-shadow: inset 0 0 0 2px rgba(194, 161, 77, 0.55); }
+
+/* ---------------- Shared bits ---------------- */
+.notice { padding: 0.7rem 0.9rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid transparent; }
+.notice.error { background: var(--err-bg); color: var(--err); border-color: var(--err-line); }
+.notice.info { background: var(--ok-bg); color: var(--ok); border-color: var(--ok-line); }
 .muted { color: var(--muted); }
 .center { text-align: center; }
+.small { font-size: 0.85rem; }
+.hidden { display: none !important; }
 
-/* ---------------- Guest page ---------------- */
+/* ============================================================================
+   Guest page
+   ========================================================================== */
 body.guest {
   display: flex;
   align-items: flex-start;
@@ -75,60 +140,229 @@ body.guest {
   padding: 2.5rem 1rem;
 }
 body.guest .card {
+  position: relative;
   width: 100%;
   max-width: 540px;
-  background: var(--cream);
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  box-shadow: var(--shadow);
-  padding: 2.2rem;
+  padding: 9rem 2.2rem 2.2rem; /* extra top room for the (taller) candelabra */
+  background-color: var(--card);
+  background-image:
+    radial-gradient(120% 70% at 50% -6%, rgba(194, 161, 77, 0.12), transparent 60%),
+    radial-gradient(150% 120% at 50% 120%, rgba(0, 0, 0, 0.5), transparent 70%);
+  border: 1px solid var(--line-2);
+  border-radius: 22px 22px 16px 16px;
+  box-shadow: var(--shadow), inset 0 0 0 1px rgba(194, 161, 77, 0.07);
+}
+/* Candelabra crowning the card */
+body.guest .card::before {
+  content: "";
+  position: absolute;
+  top: 0.3rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 190px;
+  height: 132px;
+  background: url("/img/candelabra.svg") center/contain no-repeat;
+  filter: drop-shadow(0 0 16px rgba(240, 178, 74, 0.5));
+  pointer-events: none; /* flames/glow/smoke animate inside the SVG */
 }
 body.guest h1 {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--display);
   font-weight: 600;
+  font-variant: small-caps;
+  letter-spacing: 1.5px;
+  font-size: 1.85rem;
+  margin: 0 0 0.35rem;
+  text-align: center;
+  color: var(--brass-bright);
+  text-shadow: 0 1px 0 #000, 0 0 22px rgba(194, 161, 77, 0.2);
+}
+body.guest .subtitle {
+  text-align: center;
+  color: var(--muted);
+  margin: 0 0 0.6rem;
+  font-family: var(--serif);
+  font-style: italic;
+}
+/* Floral flourish beneath the subtitle */
+body.guest .subtitle::after {
+  content: "";
+  display: block;
+  width: 210px;
+  height: 18px;
+  margin: 0.85rem auto 1.4rem;
+  background: url("/img/flourish.svg") center/contain no-repeat;
+}
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  color: var(--muted);
+  margin: 1.1rem 0;
+  font-size: 0.8rem;
+  font-variant: small-caps;
+  letter-spacing: 2px;
+}
+.divider::before, .divider::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  background: linear-gradient(to right, transparent, var(--line-2));
+}
+.divider::after { background: linear-gradient(to left, transparent, var(--line-2)); }
+.attendee-row {
+  border: 1px dashed var(--line-2);
+  border-radius: 10px;
+  padding: 0.8rem;
+  margin-bottom: 0.7rem;
+  background: var(--card-2);
+}
+.attendee-row .rowhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
+.attendee-row .rowhead strong { font-size: 0.9rem; color: var(--brass); font-variant: small-caps; letter-spacing: 0.5px; }
+
+/* Confirmation: a wax-seal medallion in place of the bare glyph */
+.checkmark {
+  width: 96px;
+  height: 96px;
+  margin: 0.5rem auto 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 2.6rem;
+  color: var(--brass-bright);
+  background: radial-gradient(circle at 36% 30%, var(--wine-bright), var(--wine) 55%, var(--wine-dark));
+  border: 2px solid rgba(194, 161, 77, 0.6);
+  box-shadow: var(--glow), inset 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================================================
+   Admin dashboard — restrained dark slate + brass (a gift, but still legible)
+   ========================================================================== */
+body.admin .wrap { max-width: 1080px; margin: 0 auto; padding: 1.2rem; }
+body.admin header.top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid var(--line);
+}
+body.admin h1 {
+  font-family: var(--display);
+  font-variant: small-caps;
+  letter-spacing: 1px;
+  font-size: 1.4rem;
+  margin: 0;
+  color: var(--brass-bright);
+  text-shadow: 0 0 18px rgba(194, 161, 77, 0.18);
+}
+body.admin h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--brass);
+  font-variant: small-caps;
   letter-spacing: 0.5px;
-  margin: 0 0 0.3rem;
+}
+body.admin h3::before {
+  content: "";
+  width: 17px;
+  height: 17px;
+  flex: none;
+  background: url("/img/rose.svg") center/contain no-repeat;
+}
+.tabs { display: flex; gap: 0.3rem; border-bottom: 1px solid var(--line); margin-bottom: 1rem; flex-wrap: wrap; }
+.tabs button {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid transparent;
+  border-radius: 8px 8px 0 0;
+  box-shadow: none;
+}
+.tabs button:hover { background: rgba(194, 161, 77, 0.07); color: var(--ink); }
+.tabs button.active {
+  background: var(--card);
+  color: var(--brass-bright);
+  border: 1px solid var(--line-2);
+  border-bottom-color: var(--card);
+  margin-bottom: -1px;
+}
+.panel { background: var(--card); border: 1px solid var(--line-2); border-radius: 12px; padding: 1.1rem; box-shadow: var(--shadow); }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.8rem; margin-bottom: 1rem; }
+.stat {
+  background: linear-gradient(180deg, var(--card-2), var(--card));
+  border: 1px solid var(--line-2);
+  border-radius: 10px;
+  padding: 0.9rem;
   text-align: center;
 }
-body.guest .subtitle { text-align: center; color: var(--muted); margin: 0 0 1.6rem; font-family: Georgia, serif; font-style: italic; }
-.divider { display: flex; align-items: center; gap: 0.8rem; color: var(--muted); margin: 1.1rem 0; font-size: 0.85rem; }
-.divider::before, .divider::after { content: ""; height: 1px; background: var(--line); flex: 1; }
-.attendee-row { border: 1px dashed var(--line); border-radius: 10px; padding: 0.8rem; margin-bottom: 0.7rem; }
-.attendee-row .rowhead { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem; }
-.attendee-row .rowhead strong { font-size: 0.9rem; }
-.checkmark { font-size: 3rem; color: var(--ok); text-align: center; }
-
-/* ---------------- Admin page ---------------- */
-body.admin { background: #f4f5f7; color: #1f2328; }
-body.admin .wrap { max-width: 1080px; margin: 0 auto; padding: 1.2rem; }
-body.admin header.top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-body.admin h1 { font-size: 1.3rem; margin: 0; }
-.tabs { display: flex; gap: 0.3rem; border-bottom: 1px solid #dfe3e8; margin-bottom: 1rem; flex-wrap: wrap; }
-.tabs button { background: transparent; color: #57606a; border-radius: 8px 8px 0 0; }
-.tabs button.active { background: #fff; color: #1f2328; border: 1px solid #dfe3e8; border-bottom-color: #fff; margin-bottom: -1px; }
-.panel { background: #fff; border: 1px solid #dfe3e8; border-radius: 10px; padding: 1.1rem; }
-.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.8rem; margin-bottom: 1rem; }
-.stat { background: #fff; border: 1px solid #dfe3e8; border-radius: 10px; padding: 0.9rem; text-align: center; }
-.stat .n { font-size: 1.7rem; font-weight: 700; }
-.stat .l { color: #57606a; font-size: 0.85rem; }
+.stat .n { font-size: 1.8rem; font-weight: 700; color: var(--brass-bright); text-shadow: 0 0 14px rgba(194, 161, 77, 0.25); }
+.stat .l { color: var(--muted); font-size: 0.85rem; }
 table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
-th, td { text-align: left; padding: 0.5rem 0.55rem; border-bottom: 1px solid #eef1f4; vertical-align: top; }
-th { color: #57606a; font-weight: 600; }
-td input { padding: 0.35rem 0.5rem; }
-.pill { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.78rem; }
-.pill.yes { background: #e4f1e4; color: #2f6b34; }
-.pill.no { background: #fbe7e5; color: #a23b32; }
-.pill.pending { background: #eef0f2; color: #57606a; }
-body.admin input, body.admin textarea, body.admin select { font-family: inherit; }
+th, td { text-align: left; padding: 0.5rem 0.55rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--brass); font-weight: 600; font-variant: small-caps; letter-spacing: 0.5px; border-bottom: 1px solid var(--line-2); }
+tbody tr:hover { background: rgba(194, 161, 77, 0.05); }
+td input { padding: 0.35rem 0.5rem; background: var(--bg-2); }
+.pill { display: inline-block; padding: 0.1rem 0.55rem; border-radius: 999px; font-size: 0.78rem; border: 1px solid transparent; }
+.pill.yes { background: rgba(95, 140, 90, 0.18); color: var(--ok); border-color: var(--ok-line); }
+.pill.no { background: rgba(150, 60, 55, 0.2); color: var(--err); border-color: var(--err-line); }
+.pill.pending { background: rgba(180, 170, 150, 0.12); color: var(--muted); border-color: var(--line-2); }
 .toolbar { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.9rem; }
 .toolbar > .spacer { flex: 1; }
-.login-box { max-width: 360px; margin: 8vh auto; background: #fff; border: 1px solid #dfe3e8; border-radius: 12px; padding: 1.6rem; }
-.hidden { display: none !important; }
-.small { font-size: 0.85rem; }
+.login-box {
+  position: relative;
+  max-width: 380px;
+  margin: 8vh auto;
+  padding: 8.5rem 1.8rem 1.8rem;
+  background: var(--card);
+  border: 1px solid var(--line-2);
+  border-radius: 14px;
+  box-shadow: var(--shadow), inset 0 0 0 1px rgba(194, 161, 77, 0.06);
+}
+.login-box::before {
+  content: "";
+  position: absolute;
+  top: 0.4rem;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 168px;
+  height: 116px;
+  background: url("/img/candelabra.svg") center/contain no-repeat;
+  filter: drop-shadow(0 0 14px rgba(240, 178, 74, 0.45));
+  pointer-events: none;
+}
+.login-box h1 {
+  font-family: var(--display);
+  font-variant: small-caps;
+  letter-spacing: 1px;
+  text-align: center;
+  color: var(--brass-bright);
+}
 
-/* +1 allotment stepper (admin) */
-.stepper { display: inline-flex; align-items: center; border: 1px solid #dfe3e8; border-radius: 8px; overflow: hidden; }
-.stepper-btn { background: #eef0f2; color: #1f2328; border: none; width: 2.1rem; height: 2.1rem; font-size: 1.2rem; line-height: 1; padding: 0; border-radius: 0; }
-.stepper-btn:hover { background: #e2e6ea; }
-.stepper-val { width: 2.8rem; text-align: center; border: none; border-left: 1px solid #dfe3e8; border-right: 1px solid #dfe3e8; border-radius: 0; padding: 0.35rem 0; }
-.steplabel { display: inline-flex; flex-direction: column; gap: 0.2rem; font-size: 0.85rem; color: #57606a; }
+/* +1 allotment stepper */
+.stepper { display: inline-flex; align-items: center; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; background: var(--bg-2); }
+.stepper-btn { background: #2b231b; color: var(--ink); border: none; width: 2.1rem; height: 2.1rem; font-size: 1.2rem; line-height: 1; padding: 0; border-radius: 0; box-shadow: none; }
+.stepper-btn:hover { background: #36291d; color: var(--brass-bright); box-shadow: none; }
+.stepper-val { width: 2.8rem; text-align: center; border: none; border-left: 1px solid var(--line-2); border-right: 1px solid var(--line-2); border-radius: 0; padding: 0.35rem 0; background: var(--bg-2); }
+.steplabel { display: inline-flex; flex-direction: column; gap: 0.2rem; font-size: 0.85rem; color: var(--muted); }
+
+/* ---------------- Motion ----------------
+   The candelabra's flames, glow, smoke, and sway are animated *inside*
+   candelabra.svg (and self-disable under prefers-reduced-motion), so no
+   page-level keyframes are needed for it here. */
+
+/* ---------------- Responsive ---------------- */
+@media (max-width: 560px) {
+  body.guest { padding: 1.5rem 0.8rem; }
+  body.guest .card { padding: 7.25rem 1.3rem 1.6rem; border-radius: 18px 18px 14px 14px; }
+  body.guest .card::before { width: 150px; height: 104px; }
+  body.guest h1 { font-size: 1.55rem; }
+  body.admin .wrap { padding: 0.85rem; }
+  /* Let wide admin tables scroll instead of squashing */
+  .panel table { display: block; overflow-x: auto; white-space: nowrap; }
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
