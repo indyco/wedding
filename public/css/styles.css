@@ -125,3 +125,10 @@ body.admin input, body.admin textarea, body.admin select { font-family: inherit;
 .login-box { max-width: 360px; margin: 8vh auto; background: #fff; border: 1px solid #dfe3e8; border-radius: 12px; padding: 1.6rem; }
 .hidden { display: none !important; }
 .small { font-size: 0.85rem; }
+
+/* +1 allotment stepper (admin) */
+.stepper { display: inline-flex; align-items: center; border: 1px solid #dfe3e8; border-radius: 8px; overflow: hidden; }
+.stepper-btn { background: #eef0f2; color: #1f2328; border: none; width: 2.1rem; height: 2.1rem; font-size: 1.2rem; line-height: 1; padding: 0; border-radius: 0; }
+.stepper-btn:hover { background: #e2e6ea; }
+.stepper-val { width: 2.8rem; text-align: center; border: none; border-left: 1px solid #dfe3e8; border-right: 1px solid #dfe3e8; border-radius: 0; padding: 0.35rem 0; }
+.steplabel { display: inline-flex; flex-direction: column; gap: 0.2rem; font-size: 0.85rem; color: #57606a; }

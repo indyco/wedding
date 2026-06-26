@@ -8,6 +8,23 @@
   const notice = (msg, kind) => h("div", { class: "notice " + (kind || "info") }, msg);
   const pill = (label, kind) => h("span", { class: "pill " + kind }, label);
 
+  // A +/- stepper for the +1 allotment: a large minus (left) and plus (right)
+  // button around an editable value. Returns { wrap, input } so callers can
+  // still read input.value exactly like the old number field.
+  function stepper(initial, opts) {
+    opts = opts || {};
+    const min = opts.min != null ? opts.min : 0;
+    const max = opts.max != null ? opts.max : 20;
+    const input = h("input", { type: "text", inputmode: "numeric", value: String(initial != null ? initial : 0), class: "stepper-val", "aria-label": "Plus-ones (+1s) allotted" });
+    const clamp = (n) => Math.max(min, Math.min(max, isNaN(n) ? 0 : n));
+    const read = () => clamp(parseInt(input.value, 10));
+    const setVal = (n) => { input.value = String(clamp(n)); };
+    const minus = h("button", { type: "button", class: "stepper-btn", "aria-label": "One fewer +1", onclick: () => setVal(read() - 1) }, "\u2212");
+    const plus = h("button", { type: "button", class: "stepper-btn", "aria-label": "One more +1", onclick: () => setVal(read() + 1) }, "+");
+    const wrap = h("div", { class: "stepper" }, minus, input, plus);
+    return { wrap, input };
+  }
+
   function guard(r) {
     if (r.status === 401) {
       renderLogin("Your session has expired. Please log in again.");
@@ -131,7 +148,8 @@
     // Add-new row
     const nName = h("input", { placeholder: "Full name / household" });
     const nCode = h("input", { placeholder: "Code (optional)" });
-    const nAllot = h("input", { type: "number", min: "0", value: "0", style: "max-width:5rem" });
+    const allotAdd = stepper(0);
+    const nAllot = allotAdd.input;
     const nHint = h("input", { placeholder: "Hint (optional)" });
     const nEmail = h("input", { placeholder: "Email (optional)" });
     const addBtn = h(
@@ -157,7 +175,12 @@
     const addRow = h(
       "div",
       { class: "toolbar" },
-      nName, nCode, nAllot, nHint, nEmail, addBtn
+      nName,
+      nCode,
+      h("label", { class: "steplabel" }, "+1s allotted", allotAdd.wrap),
+      nHint,
+      nEmail,
+      addBtn
     );
 
     // CSV import/export
@@ -186,7 +209,8 @@
     const rows = invitees.map((inv) => {
       const cName = h("input", { value: inv.name });
       const cCode = h("input", { value: inv.invite_code || "" });
-      const cAllot = h("input", { type: "number", min: "0", value: String(inv.plus_ones_allotted), style: "max-width:5rem" });
+      const allotRow = stepper(inv.plus_ones_allotted);
+      const cAllot = allotRow.input;
       const cHint = h("input", { value: inv.disambiguation_hint || "" });
       const cEmail = h("input", { value: inv.email || "" });
       const status = inv.rsvp_id ? (inv.attending ? pill("Yes", "yes") : pill("No", "no")) : pill("Pending", "pending");
@@ -227,7 +251,7 @@
         {},
         h("td", {}, cName),
         h("td", {}, cCode),
-        h("td", {}, cAllot),
+        h("td", {}, allotRow.wrap),
         h("td", {}, cHint),
         h("td", {}, cEmail),
         h("td", {}, status),
@@ -242,7 +266,7 @@
       h(
         "thead",
         {},
-        h("tr", {}, ["Name", "Code", "+1s", "Hint", "Email", "Status", "Party", ""].map((t) => h("th", {}, t)))
+        h("tr", {}, ["Name", "Code", "+1s allotted", "Hint", "Email", "Status", "Party", ""].map((t) => h("th", {}, t)))
       ),
       h("tbody", {}, rows)
     );
