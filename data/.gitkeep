@@ -1,0 +1,2 @@
+# Keep this directory in version control. The runtime SQLite database
+# (wedding.db) is created here at startup and is gitignored.

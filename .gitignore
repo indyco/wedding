@@ -1,0 +1,32 @@
+node_modules/
+
+# Initial Plan
+Wedding RSVP Site Backend Plan.md
+
+# Environment / secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Runtime data (SQLite DB + WAL/SHM sidecars, sessions)
+data/*.db
+data/*.db-wal
+data/*.db-shm
+data/*.sqlite
+data/*.sqlite*
+data/sessions/
+data/backups/
+
+# Logs
+*.log
+logs/
+
+# Cloudflare Tunnel credentials — never commit
+cloudflared/
+*.pem
+*.tunnel.json
+tunnel-config.yml
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db

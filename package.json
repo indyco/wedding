@@ -1,0 +1,33 @@
+{
+  "name": "wedding",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Wedding RSVP site — pre-loaded guest list, per-guest +1 allotments, admin dashboard, broadcast email.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test --test-force-exit",
+    "reset-admin": "node scripts/reset-admin.js",
+    "seed-demo": "node scripts/seed-demo.js",
+    "backup": "node scripts/backup-db.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.8.1",
+    "better-sqlite3-session-store": "^0.1.0",
+    "csv-parse": "^5.5.6",
+    "csv-stringify": "^6.5.1",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.1",
+    "express-session": "^1.18.1",
+    "resend": "^4.0.1"
+  },
+  "devDependencies": {
+    "supertest": "^7.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
