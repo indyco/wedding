@@ -1,6 +1,6 @@
 # wedding
 
-A small, self-hosted wedding RSVP site: a pre-loaded guest list with per-guest +1 allotments, named attendees, an admin dashboard, and a broadcast email to everyone who RSVP'd **yes**. Built with Express + SQLite, mirroring the deployment style of `indy.nexus`.
+A small, self-hosted wedding RSVP site: a pre-loaded guest list with per-guest +1 allotments, named attendees, an admin dashboard, and a broadcast email to everyone who RSVP'd **yes**. Built with Express + SQLite.
 
 ## Features
 
@@ -43,7 +43,7 @@ All runtime data lives in a single SQLite file at `data/wedding.db` (gitignored)
 
 ## Deployment (behind Cloudflare)
 
-Run `npm start` under your process supervisor (systemd/pm2), the same way `indy.nexus` runs. Expose it with a **Cloudflare Tunnel** (`cloudflared`) so no inbound ports are opened and the origin IP stays hidden. Protect the admin area with a **Cloudflare Access** policy on the `/admin` path — the allow-list of permitted emails lives in the Cloudflare Zero Trust dashboard, **never in this repo**. Set `NODE_ENV=production` and the real `APP_BASE_URL` once the hostname is chosen.
+Run `npm start` under your process supervisor (systemd/pm2). Expose it with a **Cloudflare Tunnel** (`cloudflared`) so no inbound ports are opened and the origin IP stays hidden. Protect the admin area with a **Cloudflare Access** policy on the `/admin` path — the allow-list of permitted emails lives in the Cloudflare Zero Trust dashboard, **never in this repo**. Set `NODE_ENV=production` and the real `APP_BASE_URL` once the hostname is chosen.
 
 ## Security / public-repo notes
 
