@@ -13,42 +13,33 @@ test("normalizeName strips diacritics, punctuation, case, and extra spaces", () 
   assert.equal(normalizeName(undefined), "");
 });
 
-test("normalizeCode trims and uppercases", () => {
-  assert.equal(normalizeCode(" ab-12 "), "AB-12");
+test("normalizeCode reduces to digits only", () => {
+  assert.equal(normalizeCode(" 1234-5678 "), "12345678");
+  assert.equal(normalizeCode("1234 5678"), "12345678");
+  assert.equal(normalizeCode("abc"), ""); // no digits
   assert.equal(normalizeCode(null), "");
 });
 
-test("lookup prefers the invite code and returns a unique match", () => {
+test("lookup matches by invite code (dashes/spaces ignored)", () => {
   const s = open(":memory:");
-  const alice = s.createInvitee({ name: "Alice Adams", invite_code: "alpha1", plus_ones_allotted: 1 });
-  s.createInvitee({ name: "Bob Brown", invite_code: "beta2" });
+  const alice = s.createInvitee({ name: "Alice Adams", invite_code: "31415926", plus_ones_allotted: 1 });
+  s.createInvitee({ name: "Bob Brown", invite_code: "27182818" });
 
-  const r = lookupInvitee(s, { code: "ALPHA1", name: "totally wrong" });
+  const r = lookupInvitee(s, { code: "3141-5926" });
   assert.equal(r.status, "unique");
   assert.equal(r.invitee.id, alice.id);
 });
 
-test("lookup falls back to name when the code is unknown", () => {
+test("lookup by name is no longer supported (enumeration oracle removed)", () => {
   const s = open(":memory:");
-  const carol = s.createInvitee({ name: "Carol Clark" });
-  const r = lookupInvitee(s, { code: "nope", name: "carol clark" });
-  assert.equal(r.status, "unique");
-  assert.equal(r.invitee.id, carol.id);
+  s.createInvitee({ name: "Carol Clark", invite_code: "40000001" });
+  // A name — even an exact one — must never resolve to an invitee.
+  assert.equal(lookupInvitee(s, { name: "carol clark" }).status, "none");
 });
 
-test("lookup returns 'multiple' for duplicate names", () => {
+test("lookup returns 'none' when the code is unknown or absent", () => {
   const s = open(":memory:");
-  s.createInvitee({ name: "John Smith", disambiguation_hint: "Oak St" });
-  s.createInvitee({ name: "John Smith", disambiguation_hint: "Elm St" });
-
-  const r = lookupInvitee(s, { name: "  john   smith " });
-  assert.equal(r.status, "multiple");
-  assert.equal(r.candidates.length, 2);
-});
-
-test("lookup returns 'none' when nothing matches", () => {
-  const s = open(":memory:");
-  s.createInvitee({ name: "Dave Davis" });
-  assert.equal(lookupInvitee(s, { name: "nobody at all" }).status, "none");
+  s.createInvitee({ name: "Dave Davis", invite_code: "40000002" });
+  assert.equal(lookupInvitee(s, { code: "99999999" }).status, "none");
   assert.equal(lookupInvitee(s, {}).status, "none");
 });

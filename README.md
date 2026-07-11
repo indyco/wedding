@@ -4,10 +4,10 @@ A small, self-hosted wedding RSVP site: a pre-loaded guest list with per-guest +
 
 ## Features
 
-- Guests find themselves by **invite code (preferred)** or by **name as it appears on the invite**.
+- Guests find themselves by their **invite code** (8 digits, shown dashed as `1234-5678`). Code is the only lookup path — name lookup was removed so the guest list can't be enumerated.
 - RSVP yes/no; if yes, name each attendee (up to the invitee's +1 allotment) with optional dietary notes.
 - Guests can edit their response later via a private link emailed to them.
-- Admin dashboard: manage the guest list and +1 allotments, import/export CSV, view/filter responses and headcounts, and send a broadcast email to attending guests.
+- Admin dashboard: manage the guest list and +1 allotments, RSVP on a guest's behalf, import/export CSV (incl. a caterer-only dietary export), view/filter responses and headcounts, and send a broadcast email to attending guests.
 - Security-first: designed to sit behind Cloudflare (Tunnel + Access), with app-level rate limiting, CSRF protection, hashed passwords, and a honeypot.
 
 ## Requirements
@@ -26,7 +26,7 @@ npm run seed-demo       # optional: load a few demo invitees for local testing
 
 On first start an admin account is created from `ADMIN_USERNAME` / `ADMIN_PASSWORD`. Change the credentials anytime from the dashboard, or run `npm run reset-admin` on the server.
 
-To try the app with sample data, run `npm run seed-demo`. It loads a handful of demo invitees (e.g. invite codes `ALICE1`, `GARCIA3`) so you can exercise the guest lookup and RSVP flow immediately. It's idempotent (skips codes that already exist) and is intended for local testing only — never run it against production data.
+To try the app with sample data, run `npm run seed-demo`. It loads a handful of demo invitees and prints their invite codes (e.g. `1000-0001` for Alice, `1000-0003` for the Garcia family) so you can exercise the guest lookup and RSVP flow immediately. It's idempotent (skips codes that already exist) and is intended for local testing only — never run it against production data.
 
 ## Configuration
 
@@ -44,6 +44,10 @@ All configuration is via environment variables (see `.env.example`). **Never com
 
 All runtime data lives in a single SQLite file at `data/wedding.db` (gitignored). Back it up regularly — e.g. a nightly copy of the file, or Litestream for continuous replication on Linux.
 
+**Invite codes.** New invitees are assigned a random 8-digit code (CSPRNG) automatically. `npm run regen-codes` assigns codes to any invitee missing one; `npm run regen-codes -- --all` re-rolls every code (do this only before invites are printed — it invalidates any already handed out).
+
+**Post-wedding purge.** `npm run purge` prints a dry run of what would be removed. `npm run purge -- --yes` clears personal data (attendee names, dietary notes, emails, messages) while keeping aggregate headcounts; add `--hard` to also delete all RSVP/attendee rows and anonymize invitee names. Dietary notes can imply health/religion data, so purge once you no longer need the details.
+
 ## Deployment (behind Cloudflare)
 
 Run `npm start` under your process supervisor (systemd/pm2). Expose it with a **Cloudflare Tunnel** (`cloudflared`) so no inbound ports are opened and the origin IP stays hidden. Protect the admin area with a **Cloudflare Access** policy on the `/admin` path — the allow-list of permitted emails lives in the Cloudflare Zero Trust dashboard, **never in this repo**. Set `NODE_ENV=production` and the real `APP_BASE_URL` once the hostname is chosen.
@@ -58,8 +62,8 @@ This repo is public, so secrets and allow-lists are never committed:
 ## Project layout
 
 - `server.js` — Express entry (middleware + routes).
-- `lib/` — `db.js`, `matching.js`, `email.js`, `csv.js`.
-- `scripts/` — `reset-admin.js`, `seed-demo.js`.
+- `lib/` — `db.js`, `matching.js`, `codes.js`, `email.js`, `csv.js`.
+- `scripts/` — `reset-admin.js`, `seed-demo.js`, `regen-codes.js`, `purge.js`, `backup-db.js`.
 - `public/` — guest + admin UI.
 - `data/` — runtime SQLite DB (gitignored).
 - `test/` — unit + integration tests (`npm test`).

@@ -8,7 +8,7 @@ UI in `public/` (no build step, no framework). Node >= 20. Repo
 
 - `npm start` — run (http://localhost:3000); `npm run dev` — watch mode.
 - `npm test` — full suite (`node --test` + supertest); `node --test test/rsvp.test.js` — one file.
-- `npm run reset-admin` | `seed-demo` | `backup`. No linter configured.
+- `npm run reset-admin` | `seed-demo` | `regen-codes` | `purge` | `backup`. No linter configured.
 
 ## Map
 
@@ -17,9 +17,11 @@ UI in `public/` (no build step, no framework). Node >= 20. Repo
   rate limiters, auth routes; mounts route groups; returns app (no `listen`) for supertest.
 - `lib/db.js` — SQLite store; all data access.
 - `lib/routes.public.js` — `/api/lookup`, `/api/rsvp`.
-- `lib/routes.admin.js` — invitee CRUD, CSV import/export, summary, rsvps,
-  broadcast (+test), email-log (all require admin session).
-- `lib/matching.js` — lookup by code/name + disambiguation hints.
+- `lib/routes.admin.js` — invitee CRUD, RSVP-on-behalf, CSV import/export
+  (+caterer dietary export), summary, rsvps, broadcast (+test), email-log
+  (all require admin session).
+- `lib/matching.js` — lookup by invite code only (name lookup removed).
+  `lib/codes.js` — CSPRNG 8-digit invite-code generation + dashed formatting.
 - `lib/email.js` — Resend; logs to console when no API key. `lib/csv.js` — CSV import/export.
 - `public/` — `index.html`+`js/guest.js` (guest flow), `admin.html`+`js/admin.js`
   (dashboard tabs), `js/common.js` (`h`/`api`/`clearNode`), `css/styles.css`.

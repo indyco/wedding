@@ -9,6 +9,11 @@ Wedding RSVP Site Backend Plan.md
 .env.*
 !.env.example
 
+# CSVs
+*.csv
+data/*.csv
+!test/fixtures/*.csv
+
 # Runtime data (SQLite DB + WAL/SHM sidecars, sessions)
 data/*.db
 data/*.db-wal

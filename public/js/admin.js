@@ -8,6 +8,12 @@
   const notice = (msg, kind) => h("div", { class: "notice " + (kind || "info") }, msg);
   const pill = (label, kind) => h("span", { class: "pill " + kind }, label);
 
+  // Display an 8-digit invite code dashed ("1234-5678"); leave other values bare.
+  function fmtCode(code) {
+    const d = String(code == null ? "" : code).replace(/\D/g, "");
+    return d.length === 8 ? d.slice(0, 4) + "-" + d.slice(4) : d;
+  }
+
   // A +/- stepper for the +1 allotment: a large minus (left) and plus (right)
   // button around an editable value. Returns { wrap, input } so callers can
   // still read input.value exactly like the old number field.
@@ -214,11 +220,12 @@
       "Import CSV"
     );
     const exportLink = h("a", { href: "/api/admin/export.csv" }, h("button", { class: "secondary", type: "button" }, "Export CSV"));
+    const catererLink = h("a", { href: "/api/admin/export-caterer.csv" }, h("button", { class: "secondary", type: "button" }, "Caterer CSV (dietary only)"));
 
     // Table
     const rows = invitees.map((inv) => {
       const cName = h("input", { value: inv.name, class: "col-name" });
-      const cCode = h("input", { value: inv.invite_code || "" });
+      const cCode = h("input", { value: fmtCode(inv.invite_code), class: "col-code" });
       const allotRow = stepper(inv.plus_ones_allotted);
       const cAllot = allotRow.input;
       const cHint = h("input", { value: inv.disambiguation_hint || "" });
@@ -243,6 +250,11 @@
         },
         "Save"
       );
+      const rsvpBtn = h(
+        "button",
+        { class: "small secondary", onclick: () => openRsvpModal(inv) },
+        "RSVP"
+      );
       const del = h(
         "button",
         {
@@ -265,7 +277,7 @@
         h("td", {}, cHint),
         h("td", {}, status),
         h("td", {}, String(inv.party_size || 0)),
-        h("td", {}, h("div", { class: "row" }, save, del))
+        h("td", {}, h("div", { class: "row" }, save, rsvpBtn, del))
       );
     });
 
@@ -288,12 +300,105 @@
         addRow,
         h("h3", {}, "Bulk import / export"),
         h("div", { class: "field" }, csvArea),
-        h("div", { class: "toolbar" }, importBtn, exportLink),
+        h("div", { class: "toolbar" }, importBtn, exportLink, catererLink),
         msg,
         h("h3", {}, `Guest list (${invitees.length})`),
         table
       )
     );
+  }
+
+  // ---- RSVP on behalf of a guest (admin) ----------------------------------
+  async function openRsvpModal(inv) {
+    // Pull any existing RSVP so editing doesn't clobber names already on file.
+    let existing = null;
+    const r = await api("GET", "/api/admin/rsvps?filter=all");
+    if (!guard(r)) return;
+    if (r.ok) existing = (r.data || []).find((x) => x.invitee_id === inv.id) || null;
+
+    const max = (inv.plus_ones_allotted || 0) + 1;
+    let attending = existing && existing.rsvp_id ? !!existing.attending : true;
+    let attendees =
+      existing && existing.attendees && existing.attendees.length
+        ? existing.attendees.map((a) => ({ name: a.name, dietary: a.dietary || "" }))
+        : [{ name: inv.name, dietary: "" }];
+    attendees = attendees.slice(0, max);
+
+    const emailInput = h("input", { type: "email", value: (existing && existing.email) || inv.email || "", placeholder: "Email (optional)" });
+    const messageInput = h("textarea", { rows: "2", placeholder: "Message (optional)" }, (existing && existing.message) || "");
+    const attendingWrap = h("div", { class: "field" });
+    const attendeesWrap = h("div", {});
+    const errorSlot = h("div", {});
+
+    function renderAttendees() {
+      clearNode(attendeesWrap);
+      if (!attending) return;
+      attendeesWrap.appendChild(h("label", {}, `Who's coming? (up to ${max})`));
+      attendees.forEach((a, i) => {
+        const nameI = h("input", { type: "text", value: a.name, placeholder: "Full name" });
+        nameI.addEventListener("input", () => (attendees[i].name = nameI.value));
+        const dietI = h("input", { type: "text", value: a.dietary, placeholder: "Dietary (optional)" });
+        dietI.addEventListener("input", () => (attendees[i].dietary = dietI.value));
+        const rm = attendees.length > 1
+          ? h("button", { type: "button", class: "danger small", onclick: () => { attendees.splice(i, 1); renderAttendees(); } }, "Remove")
+          : null;
+        attendeesWrap.appendChild(h("div", { class: "attendee-row" }, h("div", { class: "row" }, nameI, dietI, rm)));
+      });
+      const addBtn = h("button", { type: "button", class: "secondary", onclick: () => { if (attendees.length < max) { attendees.push({ name: "", dietary: "" }); renderAttendees(); } } }, "+ Add guest");
+      if (attendees.length >= max) addBtn.disabled = true;
+      attendeesWrap.appendChild(addBtn);
+    }
+
+    function renderChoice() {
+      clearNode(attendingWrap);
+      const mk = (val, label) => h("button", { type: "button", class: attending === val ? "" : "secondary", onclick: () => { attending = val; renderChoice(); renderAttendees(); } }, label);
+      attendingWrap.appendChild(h("label", {}, "Attending?"));
+      attendingWrap.appendChild(h("div", { class: "row" }, mk(true, "Accepting"), mk(false, "Declining")));
+    }
+
+    const backdrop = h("div", { class: "modal-backdrop" });
+    const close = () => { if (backdrop.parentNode) backdrop.parentNode.removeChild(backdrop); };
+    backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+
+    const saveBtn = h(
+      "button",
+      {
+        onclick: async () => {
+          clearNode(errorSlot);
+          const clean = attendees.map((a) => ({ name: a.name.trim(), dietary: a.dietary.trim() })).filter((a) => a.name);
+          if (attending && clean.length === 0) { errorSlot.appendChild(notice("Add at least one guest's name.", "error")); return; }
+          const r2 = await api("POST", "/api/admin/invitees/" + inv.id + "/rsvp", {
+            attending,
+            attendees: clean,
+            email: emailInput.value.trim(),
+            message: messageInput.value.trim(),
+          });
+          if (!guard(r2)) return;
+          if (!r2.ok) { errorSlot.appendChild(notice((r2.data && r2.data.error) || "Could not save", "error")); return; }
+          close();
+          setTab("Guests");
+        },
+      },
+      "Save RSVP"
+    );
+    const cancelBtn = h("button", { class: "secondary", type: "button", onclick: close }, "Cancel");
+
+    const card = h(
+      "div",
+      { class: "modal-card" },
+      h("h3", {}, "RSVP for " + inv.name),
+      h("p", { class: "muted small" }, "Recording this on the guest's behalf. No confirmation email is sent."),
+      attendingWrap,
+      attendeesWrap,
+      h("div", { class: "field" }, h("label", {}, "Email"), emailInput),
+      h("div", { class: "field" }, h("label", {}, "Message"), messageInput),
+      errorSlot,
+      h("div", { class: "toolbar" }, saveBtn, cancelBtn)
+    );
+    backdrop.appendChild(card);
+    document.body.appendChild(backdrop);
+    renderChoice();
+    renderAttendees();
   }
 
   // ---- Responses ----------------------------------------------------------

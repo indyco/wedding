@@ -24,8 +24,7 @@
 
   // ---- Lookup screen ------------------------------------------------------
   function renderLookup(message, messageKind) {
-    const code = h("input", { type: "text", name: "code", placeholder: "e.g. SMITH123", autocomplete: "off" });
-    const name = h("input", { type: "text", name: "name", placeholder: "Jane Doe", autocomplete: "off" });
+    const code = h("input", { type: "text", name: "code", inputmode: "numeric", placeholder: "e.g. 1234-5678", autocomplete: "off" });
     const hp = honeypot();
     const errorSlot = h("div", {});
 
@@ -37,11 +36,10 @@
           clearNode(errorSlot);
           const payload = {
             code: code.value.trim(),
-            name: name.value.trim(),
             company: hp.querySelector("input").value,
           };
-          if (!payload.code && !payload.name) {
-            errorSlot.appendChild(notice("Please enter your invite code or your name."));
+          if (!payload.code) {
+            errorSlot.appendChild(notice("Please enter the invite code from your invitation."));
             return;
           }
           const r = await api("POST", "/api/lookup", payload);
@@ -52,25 +50,16 @@
           const d = r.data;
           if (d.match === "unique") {
             renderForm(d.invitee, d.rsvp, null);
-          } else if (d.match === "multiple") {
-            const hints = (d.hints || []).filter(Boolean);
-            let m = "We found more than one guest with that name. Please enter your invite code to continue.";
-            if (hints.length) m += " (Is this you? " + hints.join(" / ") + ")";
-            clearNode(errorSlot);
-            errorSlot.appendChild(notice(m, "info"));
-            code.focus();
           } else {
             clearNode(errorSlot);
             errorSlot.appendChild(
-              notice("We couldn't find your invitation. Double-check the spelling, try your invite code, or contact the couple.")
+              notice("We couldn't find that invite code. Double-check it against your invitation, or contact the couple.")
             );
           }
         },
       },
-      h("div", { class: "field" }, h("label", {}, "Invite code (preferred)"), code),
-      h("div", { class: "divider" }, "or"),
-      h("div", { class: "field" }, h("label", {}, "Your name, exactly as it appears on your invitation"), name),
-      h("p", { class: "muted small" }, "Using your invite code is the most reliable way to find your invitation, but your name works too."),
+      h("div", { class: "field" }, h("label", {}, "Invite code"), code),
+      h("p", { class: "muted small" }, "You'll find your invite code printed on your invitation."),
       hp,
       errorSlot,
       h("button", { type: "submit" }, "Find my invitation")
@@ -108,30 +97,66 @@
     function renderAttendees() {
       clearNode(attendeesWrap);
       if (!attending) return;
-      attendeesWrap.appendChild(h("label", {}, `Who's coming? (up to ${max})`));
+      // Solo (one occupant) vs. multi changes the whole treatment: solo is
+      // card-less; multi anchors the primary and threads guests on a rail.
+      const multi = attendees.length > 1;
+
+      attendeesWrap.appendChild(
+        h("p", { class: "att-cap" }, "Who's coming?", max > 1 ? h("span", { class: "att-cap-sub" }, ` (up to ${max})`) : null)
+      );
+
+      const list = h("div", { class: "attendees " + (multi ? "is-multi" : "is-solo") });
       attendees.forEach((a, i) => {
-        const nameI = h("input", { type: "text", value: a.name, placeholder: "Full name" });
+        const primary = i === 0;
+        const nameI = h("input", { type: "text", value: a.name, placeholder: primary ? "Your full name" : "Full name" });
         nameI.addEventListener("input", () => (attendees[i].name = nameI.value));
-        const dietI = h("input", { type: "text", value: a.dietary, placeholder: "Dietary notes (optional)" });
+        const dietI = h("input", { type: "text", value: a.dietary, placeholder: "e.g. vegetarian, no nuts" });
         dietI.addEventListener("input", () => (attendees[i].dietary = dietI.value));
-        const head = h(
+
+        // Persistent labels — a filled field never loses its meaning.
+        const who = h(
           "div",
-          { class: "rowhead" },
-          h("strong", {}, i === 0 ? "Your name" : "Guest " + (i + 1)),
-          attendees.length > 1
-            ? h("button", { type: "button", class: "danger", onclick: () => { attendees.splice(i, 1); renderAttendees(); } }, "Remove")
-            : null
+          { class: "att-who" },
+          h("div", { class: "att-f" }, h("label", { class: "flabel" }, primary ? "Your name" : "Full name"), nameI),
+          h("div", { class: "att-f" }, h("label", { class: "flabel opt" }, "Dietary ", h("span", { class: "opttag" }, "optional")), dietI)
         );
-        attendeesWrap.appendChild(h("div", { class: "attendee-row" }, head, h("div", { class: "row" }, nameI, dietI)));
+
+        const row = h(
+          "div",
+          { class: "att " + (primary ? "att-primary" : "att-guest") },
+          multi ? h("div", { class: "att-eyebrow" }, primary ? "You" : "Guest " + (i + 1)) : null,
+          who
+        );
+        // The primary invitee is the anchor and is never removable; only
+        // additional guests get the quiet corner "×".
+        if (!primary) {
+          row.appendChild(
+            h(
+              "button",
+              {
+                type: "button",
+                class: "att-rm",
+                title: "Remove",
+                "aria-label": "Remove this guest",
+                onclick: () => { attendees.splice(i, 1); renderAttendees(); },
+              },
+              "×"
+            )
+          );
+        }
+        list.appendChild(row);
       });
+      attendeesWrap.appendChild(list);
+
       const addBtn = h(
         "button",
         {
           type: "button",
-          class: "secondary add-guest",
+          class: "add-ghost",
           onclick: () => { if (attendees.length < max) { attendees.push({ name: "", dietary: "" }); renderAttendees(); } },
         },
-        "+ Add guest"
+        h("span", { class: "pl" }, "+"),
+        " Add a guest"
       );
       if (attendees.length >= max) addBtn.disabled = true;
       attendeesWrap.appendChild(addBtn);
@@ -194,7 +219,7 @@
       h(
         "div",
         {},
-        h("h1", {}, "Hello, " + invitee.name + "!"),
+        h("h1", {}, "Hello, ", h("span", { class: "nowrap" }, invitee.name + "!")),
         h("p", { class: "subtitle" }, existing ? "You can update your response below" : "We can't wait to hear from you"),
         form
       )

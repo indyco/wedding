@@ -54,8 +54,9 @@ test("invitee create / list / patch / delete", async () => {
 test("duplicate invite code is rejected", async () => {
   const { app } = setup();
   const agent = await loginAgent(app);
-  await agent.post("/api/admin/invitees").set(...CSRF).send({ name: "One", invite_code: "DUP" });
-  const res = await agent.post("/api/admin/invitees").set(...CSRF).send({ name: "Two", invite_code: "dup" });
+  await agent.post("/api/admin/invitees").set(...CSRF).send({ name: "One", invite_code: "55550001" });
+  // Same digits, differently punctuated — must still collide after normalization.
+  const res = await agent.post("/api/admin/invitees").set(...CSRF).send({ name: "Two", invite_code: "5555-0001" });
   assert.equal(res.status, 409);
 });
 

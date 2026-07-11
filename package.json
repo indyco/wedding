@@ -10,6 +10,8 @@
     "test": "node --test --test-force-exit",
     "reset-admin": "node scripts/reset-admin.js",
     "seed-demo": "node scripts/seed-demo.js",
+    "regen-codes": "node scripts/regen-codes.js",
+    "purge": "node scripts/purge.js",
     "backup": "node scripts/backup-db.js"
   },
   "dependencies": {
