@@ -117,7 +117,7 @@
         const head = h(
           "div",
           { class: "rowhead" },
-          h("strong", {}, i === 0 ? "Guest 1" : "Guest " + (i + 1)),
+          h("strong", {}, i === 0 ? "Your name" : "Guest " + (i + 1)),
           attendees.length > 1
             ? h("button", { type: "button", class: "danger", onclick: () => { attendees.splice(i, 1); renderAttendees(); } }, "Remove")
             : null
@@ -128,7 +128,7 @@
         "button",
         {
           type: "button",
-          class: "secondary",
+          class: "secondary add-guest",
           onclick: () => { if (attendees.length < max) { attendees.push({ name: "", dietary: "" }); renderAttendees(); } },
         },
         "+ Add guest"

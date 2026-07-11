@@ -93,15 +93,15 @@
     );
     setTab(active || "Summary");
 
-    function setTab(name) {
+    function setTab(name, opts) {
       els(".tabs button").forEach((b) => b.classList.toggle("active", b.textContent === name));
       const r = { Summary: tabSummary, Guests: tabGuests, Responses: tabResponses, Email: tabEmail, Settings: tabSettings }[name];
-      r(content);
+      r(content, opts);
     }
     // expose for closures
     renderDashboard._setTab = setTab;
   }
-  function setTab(name) { renderDashboard._setTab(name); }
+  function setTab(name, opts) { renderDashboard._setTab(name, opts); }
 
   function els(sel) { return Array.from(document.querySelectorAll(sel)); }
 
@@ -115,7 +115,17 @@
     const r = await api("GET", "/api/admin/summary");
     if (!guard(r)) return;
     const s = r.data || {};
-    const card = (n, l) => h("div", { class: "stat" }, h("div", { class: "n" }, String(n != null ? n : 0)), h("div", { class: "l" }, l));
+    const card = (n, l, filter) =>
+      h(
+        "div",
+        filter
+          ? { class: "stat stat-link", role: "button", tabindex: "0", title: "View in Responses",
+              onclick: () => setTab("Responses", { filter }),
+              onkeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setTab("Responses", { filter }); } } }
+          : { class: "stat" },
+        h("div", { class: "n" }, String(n != null ? n : 0)),
+        h("div", { class: "l" }, l)
+      );
     clearNode(content);
     content.appendChild(
       h(
@@ -124,11 +134,11 @@
         h(
           "div",
           { class: "cards" },
-          card(s.invited, "Invited"),
-          card(s.responded, "Responded"),
-          card(s.pending, "Awaiting reply"),
-          card(s.attending_parties, "Parties attending"),
-          card(s.declined, "Declined"),
+          card(s.invited, "Invited", "all"),
+          card(s.responded, "Responded", "responded"),
+          card(s.pending, "Awaiting reply", "pending"),
+          card(s.attending_parties, "Parties attending", "yes"),
+          card(s.declined, "Declined", "no"),
           card(s.headcount, "Total guests coming")
         ),
         h("p", { class: "muted small" }, "“Total guests coming” counts every named attendee across all accepted RSVPs.")
@@ -207,12 +217,12 @@
 
     // Table
     const rows = invitees.map((inv) => {
-      const cName = h("input", { value: inv.name });
+      const cName = h("input", { value: inv.name, class: "col-name" });
       const cCode = h("input", { value: inv.invite_code || "" });
       const allotRow = stepper(inv.plus_ones_allotted);
       const cAllot = allotRow.input;
       const cHint = h("input", { value: inv.disambiguation_hint || "" });
-      const cEmail = h("input", { value: inv.email || "" });
+      const cEmail = h("input", { value: inv.email || "", class: "col-email", placeholder: "Email (optional)" });
       const status = inv.rsvp_id ? (inv.attending ? pill("Yes", "yes") : pill("No", "no")) : pill("Pending", "pending");
       const save = h(
         "button",
@@ -249,11 +259,10 @@
       return h(
         "tr",
         {},
-        h("td", {}, cName),
+        h("td", {}, h("div", { class: "name-stack" }, cName, cEmail)),
         h("td", {}, cCode),
         h("td", {}, allotRow.wrap),
         h("td", {}, cHint),
-        h("td", {}, cEmail),
         h("td", {}, status),
         h("td", {}, String(inv.party_size || 0)),
         h("td", {}, h("div", { class: "row" }, save, del))
@@ -266,7 +275,7 @@
       h(
         "thead",
         {},
-        h("tr", {}, ["Name", "Code", "+1s allotted", "Hint", "Email", "Status", "Party", ""].map((t) => h("th", {}, t)))
+        h("tr", {}, ["Name", "Code", "+1s allotted", "Hint", "Status", "Party", ""].map((t) => h("th", {}, t)))
       ),
       h("tbody", {}, rows)
     );
@@ -288,12 +297,14 @@
   }
 
   // ---- Responses ----------------------------------------------------------
-  async function tabResponses(content) {
+  async function tabResponses(content, opts) {
     clearNode(content);
+    const initial = (opts && opts.filter) || "all";
+    const LABELS = { all: "All", responded: "Responded", yes: "Attending", no: "Declined", pending: "Pending" };
     const filter = h(
       "select",
       { style: "max-width:12rem", onchange: () => load(filter.value) },
-      ["all", "yes", "no", "pending"].map((v) => h("option", { value: v }, v === "all" ? "All" : v === "yes" ? "Attending" : v === "no" ? "Declined" : "Pending"))
+      Object.keys(LABELS).map((v) => h("option", { value: v, selected: v === initial ? true : null }, LABELS[v]))
     );
     const tableWrap = h("div", {}, "Loading…");
     content.appendChild(h("div", {}, h("div", { class: "toolbar" }, h("label", { style: "margin:0" }, "Filter:"), filter), tableWrap));
@@ -304,13 +315,23 @@
       const list = r.data || [];
       const rows = list.map((row) => {
         const status = row.rsvp_id ? (row.attending ? pill("Yes", "yes") : pill("No", "no")) : pill("Pending", "pending");
-        const party = (row.attendees || []).map((a) => (a.dietary ? `${a.name} (${a.dietary})` : a.name)).join(", ");
+        const attendees = row.attendees || [];
+        const party = attendees.length
+          ? attendees.map((a) =>
+              h(
+                "div",
+                { class: "guest-line" },
+                a.name,
+                a.dietary ? h("span", { class: "guest-diet" }, a.dietary) : null
+              )
+            )
+          : "";
         return h(
           "tr",
           {},
           h("td", {}, row.name),
           h("td", {}, status),
-          h("td", {}, party),
+          h("td", { class: "guests-cell" }, party),
           h("td", {}, row.email || ""),
           h("td", {}, row.message || "")
         );
@@ -325,7 +346,7 @@
         )
       );
     }
-    load("all");
+    load(initial);
   }
 
   // ---- Email --------------------------------------------------------------

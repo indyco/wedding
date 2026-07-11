@@ -21,9 +21,12 @@ npm install
 cp .env.example .env    # then edit .env (see Configuration)
 npm start               # http://localhost:3000
 npm run dev             # auto-restart on changes
+npm run seed-demo       # optional: load a few demo invitees for local testing
 ```
 
 On first start an admin account is created from `ADMIN_USERNAME` / `ADMIN_PASSWORD`. Change the credentials anytime from the dashboard, or run `npm run reset-admin` on the server.
+
+To try the app with sample data, run `npm run seed-demo`. It loads a handful of demo invitees (e.g. invite codes `ALICE1`, `GARCIA3`) so you can exercise the guest lookup and RSVP flow immediately. It's idempotent (skips codes that already exist) and is intended for local testing only — never run it against production data.
 
 ## Configuration
 
