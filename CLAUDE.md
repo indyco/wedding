@@ -9,14 +9,18 @@ UI in `public/` (no build step, no framework). Node >= 20. Repo
 - `npm start` — run (http://localhost:3000); `npm run dev` — watch mode.
 - `npm test` — full suite (`node --test` + supertest); `node --test test/rsvp.test.js` — one file.
 - `npm run reset-admin` | `seed-demo` | `backup`. No linter configured.
+- `node scripts/regen-invite-codes.js --yes` — rewrite every invite code (pre-send
+  only). Call node directly: PowerShell swallows the `--` in `npm run regen-codes -- --yes`.
 
 ## Map
 
 - `server.js` — entry: load env, open store, bootstrap admin, start listener.
 - `lib/app.js` — `createApp({store, sendEmail, config})`: headers/CSP, session,
   rate limiters, auth routes; mounts route groups; returns app (no `listen`) for supertest.
-- `lib/db.js` — SQLite store; all data access.
-- `lib/routes.public.js` — `/api/lookup`, `/api/rsvp`.
+- `lib/db.js` — SQLite store; all data access. Auto-assigns a strong random
+  `invite_code` on create (and when one is cleared) — never leave an invitee without one.
+- `lib/routes.public.js` — `/api/lookup`, `/api/rsvp`. Both close once
+  `RSVP_DEADLINE` passes (403/410 with `closed: true`), which also expires edit links.
 - `lib/routes.admin.js` — invitee CRUD, CSV import/export, summary, rsvps,
   broadcast (+test), email-log (all require admin session).
 - `lib/matching.js` — lookup by code/name + disambiguation hints.
@@ -34,12 +38,16 @@ UI in `public/` (no build step, no framework). Node >= 20. Repo
 - Always request through `api()` — it sends the `X-Requested-With` CSRF header.
 - UI: mount into `#app`, re-render by clear+rebuild with `h(tag, attrs, ...children)`;
   `api(method, url, body)` → `{ ok, status, data }`.
+- `h()` has no raw-HTML escape hatch, by design — use `text` or child strings
+  (both become text nodes). Never introduce `innerHTML`; a test asserts its absence.
 - JSON responses; errors are `{ error }`. Keep `npm test` green.
 
 ## Guardrails
 
 - Do not change timeout settings: session `maxAge` and rate-limit `windowMs`
   (`lib/app.js`), and the broadcast `sleep` throttle (`lib/routes.admin.js`).
+- Rate-limit keys come from `makeClientIp`: `CF-Connecting-IP` is honored only
+  from a `TRUSTED_PROXY_IPS` peer. Never key limiters straight off a header.
 - Never commit `.env`, the SQLite DB, or secrets/allow-lists; keep CSP strict.
   (Runs behind Cloudflare Tunnel + Access; allow-lists live in Cloudflare.)
 - Don't commit unless asked.

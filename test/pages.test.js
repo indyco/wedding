@@ -43,3 +43,21 @@ test("baseline security headers are present", async () => {
   assert.equal(res.headers["x-content-type-options"], "nosniff");
   assert.ok(res.headers["content-security-policy"]);
 });
+
+test("the front-end has no raw-HTML sink", async () => {
+  // Guest-supplied names and messages are rendered through these files; every
+  // path must produce text nodes, never parsed markup. Comments are stripped
+  // first so prose about innerHTML doesn't count as a use of it.
+  const stripComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+
+  for (const file of ["/js/common.js", "/js/guest.js", "/js/admin.js"]) {
+    const res = await request(app()).get(file);
+    assert.equal(res.status, 200);
+    const code = stripComments(res.text);
+    assert.equal(
+      /innerHTML|outerHTML|insertAdjacentHTML|document\.write/.test(code),
+      false,
+      `raw-HTML sink in ${file}`
+    );
+  }
+});

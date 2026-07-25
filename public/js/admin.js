@@ -150,7 +150,13 @@
     const nCode = h("input", { placeholder: "Code (optional)" });
     const allotAdd = stepper(0);
     const nAllot = allotAdd.input;
-    const nHint = h("input", { placeholder: "Hint (optional)" });
+    // The hint is shown to ANYONE who looks up a duplicated name, without
+    // logging in — it must not be personally identifying. See the note below
+    // the toolbar.
+    const nHint = h("input", {
+      placeholder: "Hint (shown publicly)",
+      title: "Shown to anyone looking up this name. Keep it non-identifying — e.g. \"college friend\", not a street address.",
+    });
     const nEmail = h("input", { placeholder: "Email (optional)" });
     const addBtn = h(
       "button",
@@ -183,6 +189,15 @@
       addBtn
     );
 
+    const hintNote = h(
+      "p",
+      { class: "muted small" },
+      "Hints are only used when two guests share a name, and are shown to " +
+        "whoever searched — without logging in. Keep them vague enough that they " +
+        "identify the right person to that person only (“college friend”, " +
+        "“from work”), not addresses or other personal details."
+    );
+
     // CSV import/export
     const csvArea = h("textarea", { rows: "3", placeholder: "Paste CSV: name,plus_ones_allotted,email,invite_code,notes" });
     const importBtn = h(
@@ -211,7 +226,10 @@
       const cCode = h("input", { value: inv.invite_code || "" });
       const allotRow = stepper(inv.plus_ones_allotted);
       const cAllot = allotRow.input;
-      const cHint = h("input", { value: inv.disambiguation_hint || "" });
+      const cHint = h("input", {
+        value: inv.disambiguation_hint || "",
+        title: "Shown to anyone looking up this name. Keep it non-identifying — e.g. \"college friend\", not a street address.",
+      });
       const cEmail = h("input", { value: inv.email || "" });
       const status = inv.rsvp_id ? (inv.attending ? pill("Yes", "yes") : pill("No", "no")) : pill("Pending", "pending");
       const save = h(
@@ -277,6 +295,7 @@
         {},
         h("h3", {}, "Add a guest"),
         addRow,
+        hintNote,
         h("h3", {}, "Bulk import / export"),
         h("div", { class: "field" }, csvArea),
         h("div", { class: "toolbar" }, importBtn, exportLink),

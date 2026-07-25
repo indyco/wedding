@@ -3,8 +3,10 @@
 const test = require("node:test");
 const assert = require("node:assert");
 
-const { open } = require("../lib/db");
+const { open, generateInviteCode, INVITE_CODE_ALPHABET } = require("../lib/db");
 const { normalizeName, normalizeCode, lookupInvitee } = require("../lib/matching");
+
+const CODE_RE = new RegExp(`^[${INVITE_CODE_ALPHABET}]{8}$`);
 
 test("normalizeName strips diacritics, punctuation, case, and extra spaces", () => {
   assert.equal(normalizeName("  Renée  O'Brien-Smith! "), "renee o brien smith");
@@ -16,6 +18,45 @@ test("normalizeName strips diacritics, punctuation, case, and extra spaces", () 
 test("normalizeCode trims and uppercases", () => {
   assert.equal(normalizeCode(" ab-12 "), "AB-12");
   assert.equal(normalizeCode(null), "");
+});
+
+test("generated invite codes avoid easily-misread characters", () => {
+  for (let i = 0; i < 200; i += 1) {
+    const code = generateInviteCode();
+    assert.match(code, CODE_RE);
+    assert.equal(/[01ILOU]/.test(code), false, `ambiguous character in ${code}`);
+  }
+});
+
+test("generated invite codes do not collide over many draws", () => {
+  const seen = new Set();
+  for (let i = 0; i < 2000; i += 1) seen.add(generateInviteCode());
+  assert.equal(seen.size, 2000);
+});
+
+test("every invitee gets a strong code, and lookup finds them by it", () => {
+  const s = open(":memory:");
+  const inv = s.createInvitee({ name: "Nora Nolan" });
+  assert.match(inv.invite_code, CODE_RE);
+
+  // Case-insensitive entry still matches.
+  const r = lookupInvitee(s, { code: inv.invite_code.toLowerCase() });
+  assert.equal(r.status, "unique");
+  assert.equal(r.invitee.id, inv.id);
+});
+
+test("an admin-supplied invite code is kept as-is", () => {
+  const s = open(":memory:");
+  const inv = s.createInvitee({ name: "Owen Oakes", invite_code: "custom-1" });
+  assert.equal(inv.invite_code, "CUSTOM-1");
+});
+
+test("clearing an invite code regenerates instead of blanking it", () => {
+  const s = open(":memory:");
+  const inv = s.createInvitee({ name: "Pia Park", invite_code: "WEAK1" });
+  const updated = s.updateInvitee(inv.id, { invite_code: "" });
+  assert.match(updated.invite_code, CODE_RE);
+  assert.notEqual(updated.invite_code, "WEAK1");
 });
 
 test("lookup prefers the invite code and returns a unique match", () => {

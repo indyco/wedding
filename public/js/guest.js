@@ -46,6 +46,10 @@
           }
           const r = await api("POST", "/api/lookup", payload);
           if (!r.ok) {
+            if (r.data && r.data.closed) {
+              renderClosed(r.data.error);
+              return;
+            }
             errorSlot.appendChild(notice((r.data && r.data.error) || "Something went wrong. Please try again."));
             return;
           }
@@ -175,6 +179,10 @@
           if (editToken) payload.editToken = editToken;
           const r = await api("POST", "/api/rsvp", payload);
           if (!r.ok) {
+            if (r.data && r.data.closed) {
+              renderClosed(r.data.error);
+              return;
+            }
             errorSlot.appendChild(notice((r.data && r.data.error) || "Something went wrong. Please try again."));
             return;
           }
@@ -222,11 +230,29 @@
   }
 
   // ---- Boot ---------------------------------------------------------------
+  function renderClosed(msg) {
+    mount(
+      h(
+        "div",
+        { class: "center" },
+        h("h1", {}, "RSVPs are closed"),
+        h("p", { class: "muted" }, msg || "Please contact the couple directly.")
+      )
+    );
+  }
+
   async function start() {
     if (initialEditToken) {
       const r = await api("GET", "/api/rsvp?token=" + encodeURIComponent(initialEditToken));
+      // Drop the token from the address bar either way, so it doesn't linger in
+      // history or get copied out of the URL along with the link.
+      history.replaceState({}, "", location.pathname);
       if (r.ok && r.data && r.data.invitee) {
         renderForm(r.data.invitee, r.data.rsvp, initialEditToken);
+        return;
+      }
+      if (r.data && r.data.closed) {
+        renderClosed(r.data.error);
         return;
       }
       renderLookup("That edit link is invalid or has expired — please find your invitation below.", "error");
