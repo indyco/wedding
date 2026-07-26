@@ -1,0 +1,19 @@
+# Force git to treat source as text even if it somehow contains a byte value
+# that normally never appears in text (notably NUL). A single stray NUL byte in
+# lib/csv.js once made git classify it as binary, so it could not be line-merged
+# and a whole change was lost in the merge result.
+#
+# Deliberately only the `diff` attribute, NOT `text`/`eol`: the committed blobs
+# already contain CRLF, so declaring `text eol=lf` would renormalize every file
+# and bury real changes in a whitespace diff.
+*.js    diff
+*.json  diff
+*.md    diff
+*.html  diff
+*.css   diff
+*.csv   diff
+
+# Genuinely binary.
+*.png   binary
+*.jpg   binary
+*.ico   binary
