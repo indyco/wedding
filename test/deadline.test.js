@@ -25,7 +25,7 @@ function setup(rsvpDeadline) {
   const app = createApp({
     store,
     sendEmail,
-    config: { sessionSecret: "t", appBaseUrl: "https://wed.example", rsvpDeadline },
+    config: { sessionSecret: "t", appBaseUrl: "https://wed.example", rsvpDeadline, warn: () => {} },
   });
   return { store, app, sent };
 }
@@ -46,10 +46,10 @@ test("parseDeadline treats blank as no deadline and rejects garbage", () => {
 
 test("before the deadline everything still works", async () => {
   const { store, app } = setup(FUTURE);
-  store.createInvitee({ name: "Ada Ames", invite_code: "A1" });
+  store.createInvitee({ name: "Ada Ames", invite_code: "1000000001" });
   const agent = request.agent(app);
 
-  let res = await agent.post("/api/lookup").set(...CSRF).send({ code: "A1" });
+  let res = await agent.post("/api/lookup").set(...CSRF).send({ code: "1000000001" });
   assert.equal(res.status, 200);
   assert.equal(res.body.match, "unique");
 
@@ -62,10 +62,10 @@ test("before the deadline everything still works", async () => {
 
 test("after the deadline lookup and submission are closed", async () => {
   const { store, app } = setup(PAST);
-  store.createInvitee({ name: "Ada Ames", invite_code: "A1" });
+  store.createInvitee({ name: "Ada Ames", invite_code: "1000000001" });
   const agent = request.agent(app);
 
-  let res = await agent.post("/api/lookup").set(...CSRF).send({ code: "A1" });
+  let res = await agent.post("/api/lookup").set(...CSRF).send({ code: "1000000001" });
   assert.equal(res.status, 403);
   assert.equal(res.body.closed, true);
 
@@ -80,7 +80,7 @@ test("after the deadline lookup and submission are closed", async () => {
 test("after the deadline a previously-valid edit link stops working", async () => {
   // Submit while open, then re-open the same store with the deadline passed.
   const store = open(":memory:");
-  store.createInvitee({ name: "Ben Boyd", invite_code: "B1" });
+  store.createInvitee({ name: "Ben Boyd", invite_code: "1000000002" });
 
   const openApp = createApp({
     store,
@@ -88,7 +88,7 @@ test("after the deadline a previously-valid edit link stops working", async () =
     config: { sessionSecret: "t", rsvpDeadline: FUTURE },
   });
   const agent = request.agent(openApp);
-  await agent.post("/api/lookup").set(...CSRF).send({ code: "B1" });
+  await agent.post("/api/lookup").set(...CSRF).send({ code: "1000000002" });
   const res = await agent
     .post("/api/rsvp")
     .set(...CSRF)
@@ -109,18 +109,18 @@ test("after the deadline a previously-valid edit link stops working", async () =
 
 test("with no deadline configured nothing expires", async () => {
   const { store, app } = setup(undefined);
-  store.createInvitee({ name: "Cara Cole", invite_code: "C1" });
+  store.createInvitee({ name: "Cara Cole", invite_code: "1000000003" });
   const agent = request.agent(app);
 
-  const res = await agent.post("/api/lookup").set(...CSRF).send({ code: "C1" });
+  const res = await agent.post("/api/lookup").set(...CSRF).send({ code: "1000000003" });
   assert.equal(res.status, 200);
 });
 
 test("changing the address rotates the token and warns the old address", async () => {
   const { store, app, sent } = setup(FUTURE);
-  const inv = store.createInvitee({ name: "Dana Dunn", invite_code: "D1" });
+  const inv = store.createInvitee({ name: "Dana Dunn", invite_code: "1000000004" });
   const agent = request.agent(app);
-  await agent.post("/api/lookup").set(...CSRF).send({ code: "D1" });
+  await agent.post("/api/lookup").set(...CSRF).send({ code: "1000000004" });
 
   let res = await agent
     .post("/api/rsvp")
@@ -155,9 +155,9 @@ test("changing the address rotates the token and warns the old address", async (
 
 test("re-saving with the same address does not rotate the token", async () => {
   const { store, app, sent } = setup(FUTURE);
-  store.createInvitee({ name: "Erik Ek", invite_code: "E1" });
+  store.createInvitee({ name: "Erik Ek", invite_code: "1000000005" });
   const agent = request.agent(app);
-  await agent.post("/api/lookup").set(...CSRF).send({ code: "E1" });
+  await agent.post("/api/lookup").set(...CSRF).send({ code: "1000000005" });
 
   let res = await agent
     .post("/api/rsvp")

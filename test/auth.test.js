@@ -5,7 +5,7 @@ const assert = require("node:assert");
 const request = require("supertest");
 
 const { open } = require("../lib/db");
-const { createApp, resolveSessionSecret } = require("../lib/app");
+const { createApp, resolveSessionSecret, warnIfProdLooking } = require("../lib/app");
 
 function appWithAdmin() {
   const store = open(":memory:");
@@ -51,12 +51,12 @@ test("login -> /api/me -> logout flow", async () => {
 test("logging in issues a new session ID (no session fixation)", async () => {
   const store = open(":memory:");
   store.bootstrapAdmin({ username: "admin", password: "password123" });
-  store.createInvitee({ name: "Fay Ford", invite_code: "F1" });
+  store.createInvitee({ name: "Fay Ford", invite_code: "1000000001" });
   const app = createApp({ store, config: { sessionSecret: "test-secret" } });
   const agent = request.agent(app);
 
   // Establish a pre-login session the way a guest would.
-  const before = await agent.post("/api/lookup").set(...CSRF).send({ code: "F1" });
+  const before = await agent.post("/api/lookup").set(...CSRF).send({ code: "1000000001" });
   const preLoginSid = sidFrom(before);
   assert.ok(preLoginSid, "expected a session cookie from the guest lookup");
 
@@ -77,12 +77,12 @@ test("logging in issues a new session ID (no session fixation)", async () => {
 test("the pre-login session is discarded, not upgraded", async () => {
   const store = open(":memory:");
   store.bootstrapAdmin({ username: "admin", password: "password123" });
-  store.createInvitee({ name: "Fay Ford", invite_code: "F1" });
+  store.createInvitee({ name: "Fay Ford", invite_code: "1000000001" });
   const app = createApp({ store, config: { sessionSecret: "test-secret" } });
 
   // Attacker-held session: authorized for a guest RSVP, not for admin.
   const planted = request.agent(app);
-  const plantedSid = sidFrom(await planted.post("/api/lookup").set(...CSRF).send({ code: "F1" }));
+  const plantedSid = sidFrom(await planted.post("/api/lookup").set(...CSRF).send({ code: "1000000001" }));
   assert.ok(plantedSid, "expected a session cookie to plant");
 
   // The victim logs in while carrying that exact session cookie.
@@ -101,11 +101,11 @@ test("the pre-login session is discarded, not upgraded", async () => {
 test("a guest RSVP authorization does not survive admin login", async () => {
   const store = open(":memory:");
   store.bootstrapAdmin({ username: "admin", password: "password123" });
-  store.createInvitee({ name: "Fay Ford", invite_code: "F1" });
+  store.createInvitee({ name: "Fay Ford", invite_code: "1000000001" });
   const app = createApp({ store, config: { sessionSecret: "test-secret" } });
   const agent = request.agent(app);
 
-  await agent.post("/api/lookup").set(...CSRF).send({ code: "F1" });
+  await agent.post("/api/lookup").set(...CSRF).send({ code: "1000000001" });
   await agent.post("/api/admin/login").set(...CSRF).send({ username: "admin", password: "password123" });
 
   // rsvpInviteeId was dropped with the old session, so this is unauthorized.
@@ -132,6 +132,22 @@ test("production refuses to start without a real SESSION_SECRET", () => {
     /placeholder/
   );
   assert.throws(() => resolveSessionSecret({ secret: "tooshort", isProd: true }), /at least 32/);
+});
+
+test("an https base URL without NODE_ENV=production is called out", () => {
+  const said = [];
+  const warn = (m) => said.push(m);
+
+  // The dangerous combination: a real HTTPS deployment still running as dev, so
+  // the session cookie ships without Secure.
+  assert.equal(warnIfProdLooking({ isProd: false, appBaseUrl: "https://rsvp.example.com", warn }), true);
+  assert.match(said[0], /without the Secure flag/);
+
+  // Neither a genuine local run nor a correctly-flagged production one warns.
+  assert.equal(warnIfProdLooking({ isProd: false, appBaseUrl: "http://localhost:3000", warn }), false);
+  assert.equal(warnIfProdLooking({ isProd: true, appBaseUrl: "https://rsvp.example.com", warn }), false);
+  assert.equal(warnIfProdLooking({ isProd: false, appBaseUrl: undefined, warn }), false);
+  assert.equal(said.length, 1);
 });
 
 test("development tolerates a missing SESSION_SECRET", () => {
@@ -178,6 +194,67 @@ test("wrong password is rejected", async () => {
     .set(...CSRF)
     .send({ username: "admin", password: "nope" });
   assert.equal(res.status, 401);
+});
+
+test("non-string credentials are a 400, not an unauthenticated 500", async () => {
+  // A JSON body can carry any type. SQLite binds only scalars, so an object or
+  // boolean username used to crash the query — reachable by anyone, pre-auth.
+  const app = appWithAdmin();
+  for (const body of [
+    { username: { a: 1 }, password: "password123" },
+    { username: true, password: true },
+    { username: ["admin"], password: "password123" },
+    { username: "admin", password: { a: 1 } },
+    { username: 123, password: 456 },
+  ]) {
+    const res = await request(app).post("/api/admin/login").set(...CSRF).send(body);
+    assert.equal(res.status, 400, `${JSON.stringify(body)} -> ${res.status}`);
+    assert.match(res.body.error, /required/);
+  }
+  // The real credentials still work afterwards.
+  const ok = await request(app).post("/api/admin/login").set(...CSRF).send({ username: "admin", password: "password123" });
+  assert.equal(ok.status, 200);
+});
+
+test("a malformed or oversized body is reported as a client error", async () => {
+  const app = appWithAdmin();
+
+  const malformed = await request(app)
+    .post("/api/admin/login")
+    .set(...CSRF)
+    .set("Content-Type", "application/json")
+    .send("{not json");
+  assert.equal(malformed.status, 400);
+  assert.equal(malformed.body.error, "Bad request");
+
+  const oversized = await request(app)
+    .post("/api/admin/login")
+    .set(...CSRF)
+    .set("Content-Type", "application/json")
+    .send(JSON.stringify({ username: "x".repeat(300000), password: "y" }));
+  assert.equal(oversized.status, 413);
+  assert.match(oversized.body.error, /too large/i);
+
+  // Whatever the status, never a stack trace.
+  for (const res of [malformed, oversized]) {
+    assert.doesNotMatch(JSON.stringify(res.body), /\.js:\d+|at \w+ \(/);
+  }
+});
+
+test("change credentials rejects a non-string username or password", async () => {
+  const agent = request.agent(appWithAdmin());
+  await agent.post("/api/admin/login").set(...CSRF).send({ username: "admin", password: "password123" });
+  for (const body of [
+    { currentPassword: "password123", newUsername: { a: 1 } },
+    { currentPassword: "password123", newPassword: ["x"] },
+  ]) {
+    const res = await agent.post("/api/admin/change-credentials").set(...CSRF).send(body);
+    assert.equal(res.status, 400, JSON.stringify(body));
+    assert.match(res.body.error, /must be text/);
+  }
+  // The account is untouched.
+  const me = await agent.get("/api/me");
+  assert.equal(me.body.username, "admin");
 });
 
 test("change credentials updates username and password", async () => {

@@ -42,6 +42,22 @@ test("baseline security headers are present", async () => {
   const res = await request(app()).get("/");
   assert.equal(res.headers["x-content-type-options"], "nosniff");
   assert.ok(res.headers["content-security-policy"]);
+  // The guest list is private — keep the site out of search indexes.
+  assert.match(res.headers["x-robots-tag"], /noindex/);
+});
+
+test("HSTS is sent in production only", async () => {
+  const store = open(":memory:");
+  const prod = createApp({
+    store,
+    config: { sessionSecret: "p".repeat(48), nodeEnv: "production" },
+  });
+  const res = await request(prod).get("/");
+  assert.match(res.headers["strict-transport-security"], /max-age=31536000/);
+
+  // A local http run must not pin the developer's browser to https.
+  const dev = await request(app()).get("/");
+  assert.equal(dev.headers["strict-transport-security"], undefined);
 });
 
 test("the front-end has no raw-HTML sink", async () => {

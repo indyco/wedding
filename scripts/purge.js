@@ -10,8 +10,8 @@
  *   node scripts/purge.js --yes --hard   # teardown: also delete RSVP/attendee rows
  *
  * Default (--yes): attendee names -> "guest", dietary/email/message/hint/notes
- * cleared, email log emptied. Attendee rows and attending flags are KEPT so
- * headcount aggregates still compute. --hard additionally deletes all rsvp and
+ * cleared, email log emptied, active sessions dropped. Attendee rows and
+ * attending flags are KEPT so headcount aggregates still compute. --hard additionally deletes all rsvp and
  * attendee rows and anonymizes invitee names (only the invitee count survives).
  */
 
@@ -39,13 +39,28 @@ if (!yes) {
   console.log(`  Attendee rows:       ${stats.attendees}`);
   console.log(`  Emails on file:      ${stats.emailsOnFile}`);
   console.log(`  Email-log entries:   ${stats.emailLog}`);
-  console.log(`\n  --yes  will clear attendee names, dietary notes, emails, messages, hints, notes, and the email log.`);
+  console.log(`\n  --yes  will clear attendee names, dietary notes, emails, messages, hints, notes, the email log, and all active sessions.`);
   console.log(`  --hard will additionally delete all RSVP/attendee rows and anonymize invitee names.`);
   process.exit(0);
 }
 
+/**
+ * Sessions live in this same database (better-sqlite3-session-store). A live
+ * admin session outlasting the purge would be an authenticated handle to data
+ * we just promised to remove, so drop them too — everyone simply logs in again.
+ * The table only exists once express-session has created it.
+ */
+function clearSessions() {
+  const present = db
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'sessions'")
+    .get();
+  if (!present) return 0;
+  return db.prepare("DELETE FROM sessions").run().changes;
+}
+
 const purge = db.transaction(() => {
   db.prepare("DELETE FROM email_log").run();
+  clearSessions();
   db.prepare("UPDATE invitees SET email = NULL, disambiguation_hint = NULL, notes = NULL, updated_at = datetime('now')").run();
 
   if (hard) {

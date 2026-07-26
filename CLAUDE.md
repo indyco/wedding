@@ -29,7 +29,7 @@ UI in `public/` (no build step, no framework). Node >= 20. Repo
   (all require admin session).
 - `lib/matching.js` — lookup by invite code only (name lookup removed).
   `lib/codes.js` — CSPRNG 10-digit invite-code generation + dashed formatting;
-  the single source of truth for code format (`CODE_DIGITS`).
+  the single source of truth for code format (`CODE_DIGITS`, `isValidInviteCode`).
 - `lib/email.js` — Resend; logs to console when no API key. `lib/csv.js` — CSV import/export.
 - `public/` — `index.html`+`js/guest.js` (guest flow), `admin.html`+`js/admin.js`
   (dashboard tabs), `js/common.js` (`h`/`api`/`clearNode`), `css/styles.css`.
@@ -54,6 +54,13 @@ UI in `public/` (no build step, no framework). Node >= 20. Repo
   (`lib/app.js`), and the broadcast `sleep` throttle (`lib/routes.admin.js`).
 - Rate-limit keys come from `makeClientIp`: `CF-Connecting-IP` is honored only
   from a `TRUSTED_PROXY_IPS` peer. Never key limiters straight off a header.
+- An invite code is exactly `CODE_DIGITS` digits, enforced in `lib/db.js`
+  (`assertValidInviteCode`) so the dashboard and CSV import can't differ. It is
+  the guest's only credential — a short one is brute-forceable within the rate
+  limit. Blank means "generate one", never "store an empty code".
+- Deploy with `NODE_ENV=production`: the session cookie's `Secure` flag and the
+  SESSION_SECRET strength check both key off it. The app warns at startup when
+  `APP_BASE_URL` is https but NODE_ENV isn't production.
 - Every CSV export must route guest/admin text through `csvSafe` (`lib/csv.js`) —
   a bare value beginning `= + - @` executes when the file is opened in a spreadsheet.
 - Keep source files free of NUL bytes: one stray NUL made git treat `lib/csv.js`

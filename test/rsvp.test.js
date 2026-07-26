@@ -22,17 +22,19 @@ function setup() {
   const app = createApp({
     store,
     sendEmail,
-    config: { sessionSecret: "t", appBaseUrl: "https://wed.example" },
+    // warn: silences the "https base URL but not production" notice, which is
+    // exactly the shape of this fixture and is asserted directly in auth.test.js.
+    config: { sessionSecret: "t", appBaseUrl: "https://wed.example", warn: () => {} },
   });
   return { store, app, sent };
 }
 
 test("lookup by code, then submit attending within allotment", async () => {
   const { store, app, sent } = setup();
-  const inv = store.createInvitee({ name: "Alice Adams", plus_ones_allotted: 1, invite_code: "A1" });
+  const inv = store.createInvitee({ name: "Alice Adams", plus_ones_allotted: 1, invite_code: "1000000001" });
   const agent = request.agent(app);
 
-  let res = await agent.post("/api/lookup").set(...CSRF).send({ code: "a1" });
+  let res = await agent.post("/api/lookup").set(...CSRF).send({ code: "1000000001" });
   assert.equal(res.status, 200);
   assert.equal(res.body.match, "unique");
   assert.equal(res.body.invitee.plus_ones_allotted, 1);
@@ -56,9 +58,9 @@ test("lookup by code, then submit attending within allotment", async () => {
 
 test("exceeding the allotment is rejected", async () => {
   const { store, app } = setup();
-  store.createInvitee({ name: "Solo Sam", plus_ones_allotted: 0, invite_code: "S0" });
+  store.createInvitee({ name: "Solo Sam", plus_ones_allotted: 0, invite_code: "1000000002" });
   const agent = request.agent(app);
-  await agent.post("/api/lookup").set(...CSRF).send({ code: "s0" });
+  await agent.post("/api/lookup").set(...CSRF).send({ code: "1000000002" });
 
   const res = await agent
     .post("/api/rsvp")
@@ -75,10 +77,10 @@ test("submitting without a prior lookup is forbidden", async () => {
 
 test("decline, then edit via the email token", async () => {
   const { store, app } = setup();
-  const inv = store.createInvitee({ name: "Carol Clark", plus_ones_allotted: 2, invite_code: "C2" });
+  const inv = store.createInvitee({ name: "Carol Clark", plus_ones_allotted: 2, invite_code: "1000000003" });
 
   const agent = request.agent(app);
-  await agent.post("/api/lookup").set(...CSRF).send({ code: "C2" });
+  await agent.post("/api/lookup").set(...CSRF).send({ code: "1000000003" });
   let res = await agent.post("/api/rsvp").set(...CSRF).send({ attending: false, email: "carol@example.com" });
   assert.equal(res.status, 200);
   assert.equal(res.body.attending, false);
@@ -104,9 +106,9 @@ test("decline, then edit via the email token", async () => {
 
 test("1.1 absent field leaves the stored value unchanged; empty string clears it", async () => {
   const { store, app } = setup();
-  const inv = store.createInvitee({ name: "Ida Iverson", plus_ones_allotted: 1, invite_code: "I1" });
+  const inv = store.createInvitee({ name: "Ida Iverson", plus_ones_allotted: 1, invite_code: "1000000004" });
   const agent = request.agent(app);
-  await agent.post("/api/lookup").set(...CSRF).send({ code: "i1" });
+  await agent.post("/api/lookup").set(...CSRF).send({ code: "1000000004" });
 
   // Attending RSVP with an email + message on file.
   let res = await agent
@@ -135,9 +137,9 @@ test("1.1 absent field leaves the stored value unchanged; empty string clears it
 
 test("1.2 dropping an attendee (2 -> 1) removes the row and updates headcount", async () => {
   const { store, app } = setup();
-  const inv = store.createInvitee({ name: "Hank House", plus_ones_allotted: 1, invite_code: "H1" });
+  const inv = store.createInvitee({ name: "Hank House", plus_ones_allotted: 1, invite_code: "1000000005" });
   const agent = request.agent(app);
-  await agent.post("/api/lookup").set(...CSRF).send({ code: "h1" });
+  await agent.post("/api/lookup").set(...CSRF).send({ code: "1000000005" });
 
   let res = await agent
     .post("/api/rsvp")
@@ -163,9 +165,9 @@ test("1.2 dropping an attendee (2 -> 1) removes the row and updates headcount", 
 
 test("1.3 yes -> no -> yes: attendees clear on decline and are restored from the resent list", async () => {
   const { store, app } = setup();
-  const inv = store.createInvitee({ name: "Gus Grove", plus_ones_allotted: 1, invite_code: "G1" });
+  const inv = store.createInvitee({ name: "Gus Grove", plus_ones_allotted: 1, invite_code: "1000000006" });
   const agent = request.agent(app);
-  await agent.post("/api/lookup").set(...CSRF).send({ code: "g1" });
+  await agent.post("/api/lookup").set(...CSRF).send({ code: "1000000006" });
 
   // Yes, with a dietary note.
   await agent
@@ -192,14 +194,58 @@ test("1.3 yes -> no -> yes: attendees clear on decline and are restored from the
   assert.equal(store.getSummary().headcount, 1);
 });
 
+test("re-submitting an unchanged RSVP sends no second confirmation", async () => {
+  const { store, app, sent } = setup();
+  store.createInvitee({ name: "Rita Repeat", plus_ones_allotted: 1, invite_code: "1000000009" });
+  const agent = request.agent(app);
+  await agent.post("/api/lookup").set(...CSRF).send({ code: "1000000009" });
+
+  const payload = { attending: true, email: "rita@example.com", attendees: [{ name: "Rita Repeat" }] };
+  await agent.post("/api/rsvp").set(...CSRF).send(payload);
+  assert.equal(sent.length, 1, "the first submission confirms");
+
+  // Identical resubmits are a no-op, so they must not mail the address again —
+  // otherwise one valid code is a repeat-send primitive against any address.
+  await agent.post("/api/rsvp").set(...CSRF).send(payload);
+  await agent.post("/api/rsvp").set(...CSRF).send(payload);
+  assert.equal(sent.length, 1, "identical resubmits stay silent");
+
+  // A real edit still confirms.
+  await agent.post("/api/rsvp").set(...CSRF).send({ ...payload, message: "Can't wait!" });
+  assert.equal(sent.length, 2, "a genuine change confirms again");
+});
+
+test("reading an RSVP by token does not authorize the session to write", async () => {
+  const { store, app } = setup();
+  const inv = store.createInvitee({ name: "Tess Token", plus_ones_allotted: 1, invite_code: "1000000008" });
+  store.saveRsvp({ inviteeId: inv.id, attending: true, email: "tess@example.com", attendees: [{ name: "Tess Token", is_primary: true }] });
+  const token = store.getRsvpByInviteeId(inv.id).edit_token;
+
+  const agent = request.agent(app);
+  const read = await agent.get("/api/rsvp?token=" + token);
+  assert.equal(read.status, 200);
+  assert.equal(read.body.invitee.name, "Tess Token");
+
+  // The GET is a read. Writing still requires replaying the token (or a lookup),
+  // so the read alone leaves no standing write grant on the session.
+  const blind = await agent.post("/api/rsvp").set(...CSRF).send({ attending: false });
+  assert.equal(blind.status, 403);
+  assert.equal(store.getRsvpByInviteeId(inv.id).attending, 1, "the RSVP is untouched");
+
+  // Replaying the token works, which is the path the guest page actually uses.
+  const withToken = await agent.post("/api/rsvp").set(...CSRF).send({ editToken: token, attending: false });
+  assert.equal(withToken.status, 200);
+  assert.equal(store.getRsvpByInviteeId(inv.id).attending, 0);
+});
+
 test("the honeypot field is silently ignored", async () => {
   const { store, app } = setup();
-  store.createInvitee({ name: "Dave Davis", invite_code: "D1" });
+  store.createInvitee({ name: "Dave Davis", invite_code: "1000000007" });
   const res = await request
     .agent(app)
     .post("/api/lookup")
     .set(...CSRF)
-    .send({ code: "d1", company: "spam-bot" });
+    .send({ code: "1000000007", company: "spam-bot" });
   assert.equal(res.status, 200);
   assert.equal(res.body.match, "none");
 });
@@ -233,14 +279,14 @@ test("2. new invitees are auto-assigned a unique code when none is given", () =>
 
 test("3. name-only lookup no longer matches anyone", async () => {
   const { store, app } = setup();
-  store.createInvitee({ name: "Nadia Nowak", plus_ones_allotted: 1, invite_code: "12121212" });
+  store.createInvitee({ name: "Nadia Nowak", plus_ones_allotted: 1, invite_code: "1212121212" });
   const res = await request.agent(app).post("/api/lookup").set(...CSRF).send({ name: "nadia nowak" });
   assert.equal(res.status, 200);
   assert.equal(res.body.match, "none", "name must not resolve to an invitee");
 
   // lookupInvitee ignores name entirely.
   assert.equal(lookupInvitee(store, { name: "nadia nowak" }).status, "none");
-  assert.equal(lookupInvitee(store, { code: "1212-1212" }).status, "unique");
+  assert.equal(lookupInvitee(store, { code: "1212-121212" }).status, "unique");
 });
 
 test("3. admin can RSVP on a guest's behalf", async () => {
@@ -281,7 +327,7 @@ test("3. on-behalf RSVP requires an admin session", async () => {
 
 test("4. caterer export has dietary + headcount only, no PII", async () => {
   const { store } = setup();
-  const a = store.createInvitee({ name: "Party A", plus_ones_allotted: 2, invite_code: "20000001" });
+  const a = store.createInvitee({ name: "Party A", plus_ones_allotted: 2, invite_code: "2000000001" });
   store.saveRsvp({
     inviteeId: a.id,
     attending: true,

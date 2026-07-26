@@ -168,7 +168,7 @@
 
     // Add-new row
     const nName = h("input", { placeholder: "Full name / household" });
-    const nCode = h("input", { placeholder: "Code (optional)" });
+    const nCode = h("input", { placeholder: "Code (10 digits, optional)", inputmode: "numeric" });
     const allotAdd = stepper(0);
     const nAllot = allotAdd.input;
     // Admin-only since name lookup was removed: hints are never returned to
@@ -214,7 +214,8 @@
       { class: "muted small" },
       "Guests sign in with their invite code only, so hints are never shown to " +
         "them — they're a private note for you, to tell same-named guests apart. " +
-        "Leave the code blank and one is generated automatically."
+        "Leave the code blank and a random 10-digit one is generated — best to do " +
+        "that, since a code you pick yourself is the guest's only credential."
     );
 
     // CSV import/export

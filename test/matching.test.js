@@ -78,6 +78,23 @@ test("a supplied code with no digits mints a fresh one instead of blanking", () 
   assert.notEqual(a.invite_code, b.invite_code);
 });
 
+test("a short supplied code is rejected, not stored", () => {
+  const s = open(":memory:");
+  // The code is the only thing authenticating a guest, so a two-digit one would
+  // be brute-forceable inside the public rate limit. Both write paths refuse it.
+  for (const bad of ["42", "1", "123456789", "12345678901"]) {
+    assert.throws(
+      () => s.createInvitee({ name: "Short Sam", invite_code: bad }),
+      (e) => e.status === 400 && /exactly 10 digits/.test(e.message),
+      `expected ${bad} to be rejected`
+    );
+  }
+  const inv = s.createInvitee({ name: "Short Sam", invite_code: "6000000001" });
+  assert.throws(() => s.updateInvitee(inv.id, { invite_code: "42" }), (e) => e.status === 400);
+  // The rejected update left the original code intact.
+  assert.equal(s.getInvitee(inv.id).invite_code, "6000000001");
+});
+
 test("clearing an invite code regenerates instead of blanking it", () => {
   const s = open(":memory:");
   const inv = s.createInvitee({ name: "Rex Reed", invite_code: "5000000001" });
@@ -88,24 +105,24 @@ test("clearing an invite code regenerates instead of blanking it", () => {
 
 test("lookup matches by invite code (dashes/spaces ignored)", () => {
   const s = open(":memory:");
-  const alice = s.createInvitee({ name: "Alice Adams", invite_code: "31415926", plus_ones_allotted: 1 });
-  s.createInvitee({ name: "Bob Brown", invite_code: "27182818" });
+  const alice = s.createInvitee({ name: "Alice Adams", invite_code: "3141592653", plus_ones_allotted: 1 });
+  s.createInvitee({ name: "Bob Brown", invite_code: "2718281828" });
 
-  const r = lookupInvitee(s, { code: "3141-5926" });
+  const r = lookupInvitee(s, { code: "3141-592653" });
   assert.equal(r.status, "unique");
   assert.equal(r.invitee.id, alice.id);
 });
 
 test("lookup by name is no longer supported (enumeration oracle removed)", () => {
   const s = open(":memory:");
-  s.createInvitee({ name: "Carol Clark", invite_code: "40000001" });
+  s.createInvitee({ name: "Carol Clark", invite_code: "4000000001" });
   // A name — even an exact one — must never resolve to an invitee.
   assert.equal(lookupInvitee(s, { name: "carol clark" }).status, "none");
 });
 
 test("lookup returns 'none' when the code is unknown or absent", () => {
   const s = open(":memory:");
-  s.createInvitee({ name: "Dave Davis", invite_code: "40000002" });
-  assert.equal(lookupInvitee(s, { code: "99999999" }).status, "none");
+  s.createInvitee({ name: "Dave Davis", invite_code: "4000000002" });
+  assert.equal(lookupInvitee(s, { code: "9999999999" }).status, "none");
   assert.equal(lookupInvitee(s, {}).status, "none");
 });
