@@ -3,10 +3,11 @@
 const test = require("node:test");
 const assert = require("node:assert");
 
-const { open, generateInviteCode, INVITE_CODE_ALPHABET } = require("../lib/db");
+const { open } = require("../lib/db");
+const { generateInviteCode, formatInviteCode, CODE_DIGITS } = require("../lib/codes");
 const { normalizeName, normalizeCode, lookupInvitee } = require("../lib/matching");
 
-const CODE_RE = new RegExp(`^[${INVITE_CODE_ALPHABET}]{8}$`);
+const CODE_RE = new RegExp(`^[0-9]{${CODE_DIGITS}}$`);
 
 test("normalizeName strips diacritics, punctuation, case, and extra spaces", () => {
   assert.equal(normalizeName("  Renée  O'Brien-Smith! "), "renee o brien smith");
@@ -22,11 +23,9 @@ test("normalizeCode reduces to digits only", () => {
   assert.equal(normalizeCode(null), "");
 });
 
-test("generated invite codes avoid easily-misread characters", () => {
+test("generated invite codes are the full configured length", () => {
   for (let i = 0; i < 200; i += 1) {
-    const code = generateInviteCode();
-    assert.match(code, CODE_RE);
-    assert.equal(/[01ILOU]/.test(code), false, `ambiguous character in ${code}`);
+    assert.match(generateInviteCode(), CODE_RE);
   }
 });
 
@@ -36,68 +35,55 @@ test("generated invite codes do not collide over many draws", () => {
   assert.equal(seen.size, 2000);
 });
 
-test("every invitee gets a strong code, and lookup finds them by it", () => {
+test("the code space is large enough that guessing is impractical", () => {
+  // Guards against someone shortening CODE_DIGITS: at ~150 guests this is the
+  // expected number of guesses per hit, and the public limiter allows 30/min.
+  const guessesPerHit = 10 ** CODE_DIGITS / 150;
+  assert.ok(guessesPerHit > 1e7, `only ${guessesPerHit.toExponential(1)} guesses per hit`);
+});
+
+test("formatInviteCode splits a canonical code in half", () => {
+  const code = generateInviteCode();
+  const half = Math.ceil(CODE_DIGITS / 2);
+  assert.equal(formatInviteCode(code), code.slice(0, half) + "-" + code.slice(half));
+  // Anything not canonical comes back as bare digits, without throwing.
+  assert.equal(formatInviteCode("12-34"), "1234");
+  assert.equal(formatInviteCode(null), "");
+});
+
+test("every invitee gets a code, and lookup finds them by it", () => {
   const s = open(":memory:");
   const inv = s.createInvitee({ name: "Nora Nolan" });
   assert.match(inv.invite_code, CODE_RE);
 
-  // Case-insensitive entry still matches.
-  const r = lookupInvitee(s, { code: inv.invite_code.toLowerCase() });
+  // Dashed entry, as printed on the invitation, still matches.
+  const r = lookupInvitee(s, { code: formatInviteCode(inv.invite_code) });
   assert.equal(r.status, "unique");
   assert.equal(r.invitee.id, inv.id);
 });
 
-test("an admin-supplied invite code is kept as-is", () => {
+test("an admin-supplied code is canonicalized to its digits", () => {
   const s = open(":memory:");
-  const inv = s.createInvitee({ name: "Owen Oakes", invite_code: "custom-1" });
-  assert.equal(inv.invite_code, "CUSTOM-1");
+  const inv = s.createInvitee({ name: "Owen Oakes", invite_code: "1234-500-001" });
+  assert.equal(inv.invite_code, "1234500001");
+});
+
+test("a supplied code with no digits mints a fresh one instead of blanking", () => {
+  const s = open(":memory:");
+  const a = s.createInvitee({ name: "Pia Park", invite_code: "ABC" });
+  const b = s.createInvitee({ name: "Quinn Quest", invite_code: "XYZ" });
+  // Both must get real codes — not "", which would collide on the UNIQUE index.
+  assert.match(a.invite_code, CODE_RE);
+  assert.match(b.invite_code, CODE_RE);
+  assert.notEqual(a.invite_code, b.invite_code);
 });
 
 test("clearing an invite code regenerates instead of blanking it", () => {
   const s = open(":memory:");
-  const inv = s.createInvitee({ name: "Pia Park", invite_code: "WEAK1" });
+  const inv = s.createInvitee({ name: "Rex Reed", invite_code: "5000000001" });
   const updated = s.updateInvitee(inv.id, { invite_code: "" });
   assert.match(updated.invite_code, CODE_RE);
-  assert.notEqual(updated.invite_code, "WEAK1");
-});
-
-test("generated invite codes avoid easily-misread characters", () => {
-  for (let i = 0; i < 200; i += 1) {
-    const code = generateInviteCode();
-    assert.match(code, CODE_RE);
-    assert.equal(/[01ILOU]/.test(code), false, `ambiguous character in ${code}`);
-  }
-});
-
-test("generated invite codes do not collide over many draws", () => {
-  const seen = new Set();
-  for (let i = 0; i < 2000; i += 1) seen.add(generateInviteCode());
-  assert.equal(seen.size, 2000);
-});
-
-test("every invitee gets a strong code, and lookup finds them by it", () => {
-  const s = open(":memory:");
-  const inv = s.createInvitee({ name: "Nora Nolan" });
-  assert.match(inv.invite_code, CODE_RE);
-
-  // Case-insensitive entry still matches.
-  const r = lookupInvitee(s, { code: inv.invite_code.toLowerCase() });
-  assert.equal(r.status, "unique");
-  assert.equal(r.invitee.id, inv.id);
-});
-
-test("an admin-supplied invite code is kept as-is", () => {
-  const s = open(":memory:");
-  const inv = s.createInvitee({ name: "Owen Oakes", invite_code: "custom-1" });
-  assert.equal(inv.invite_code, "CUSTOM-1");
-});
-
-test("clearing an invite code regenerates instead of blanking it", () => {
-  const s = open(":memory:");
-  const inv = s.createInvitee({ name: "Pia Park", invite_code: "WEAK1" });
-  const updated = s.updateInvitee(inv.id, { invite_code: "" });
-  assert.match(updated.invite_code, CODE_RE);
-  assert.notEqual(updated.invite_code, "WEAK1");
+  assert.notEqual(updated.invite_code, "5000000001");
 });
 
 test("lookup matches by invite code (dashes/spaces ignored)", () => {

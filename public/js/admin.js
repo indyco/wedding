@@ -8,10 +8,15 @@
   const notice = (msg, kind) => h("div", { class: "notice " + (kind || "info") }, msg);
   const pill = (label, kind) => h("span", { class: "pill " + kind }, label);
 
-  // Display an 8-digit invite code dashed ("1234-5678"); leave other values bare.
+  // Display a canonical invite code dashed in two halves ("12345-67890"); leave
+  // other values bare. Mirrors formatInviteCode() in lib/codes.js — keep CODE_LEN
+  // in step with CODE_DIGITS there.
+  const CODE_LEN = 10;
   function fmtCode(code) {
     const d = String(code == null ? "" : code).replace(/\D/g, "");
-    return d.length === 8 ? d.slice(0, 4) + "-" + d.slice(4) : d;
+    if (d.length !== CODE_LEN) return d;
+    const half = Math.ceil(CODE_LEN / 2);
+    return d.slice(0, half) + "-" + d.slice(half);
   }
 
   // A +/- stepper for the +1 allotment: a large minus (left) and plus (right)
@@ -166,12 +171,11 @@
     const nCode = h("input", { placeholder: "Code (optional)" });
     const allotAdd = stepper(0);
     const nAllot = allotAdd.input;
-    // The hint is shown to ANYONE who looks up a duplicated name, without
-    // logging in — it must not be personally identifying. See the note below
-    // the toolbar.
+    // Admin-only since name lookup was removed: hints are never returned to
+    // guests, so they're just a private note to tell same-named guests apart.
     const nHint = h("input", {
-      placeholder: "Hint (shown publicly)",
-      title: "Shown to anyone looking up this name. Keep it non-identifying — e.g. \"college friend\", not a street address.",
+      placeholder: "Hint (private)",
+      title: "Private note to tell same-named guests apart. Never shown to guests.",
     });
     const nEmail = h("input", { placeholder: "Email (optional)" });
     const addBtn = h(
@@ -208,10 +212,9 @@
     const hintNote = h(
       "p",
       { class: "muted small" },
-      "Hints are only used when two guests share a name, and are shown to " +
-        "whoever searched — without logging in. Keep them vague enough that they " +
-        "identify the right person to that person only (“college friend”, " +
-        "“from work”), not addresses or other personal details."
+      "Guests sign in with their invite code only, so hints are never shown to " +
+        "them — they're a private note for you, to tell same-named guests apart. " +
+        "Leave the code blank and one is generated automatically."
     );
 
     // CSV import/export
@@ -245,7 +248,7 @@
       const cAllot = allotRow.input;
       const cHint = h("input", {
         value: inv.disambiguation_hint || "",
-        title: "Shown to anyone looking up this name. Keep it non-identifying — e.g. \"college friend\", not a street address.",
+        title: "Private note to tell same-named guests apart. Never shown to guests.",
       });
       const cEmail = h("input", { value: inv.email || "", class: "col-email", placeholder: "Email (optional)" });
       const status = inv.rsvp_id ? (inv.attending ? pill("Yes", "yes") : pill("No", "no")) : pill("Pending", "pending");

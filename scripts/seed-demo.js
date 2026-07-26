@@ -14,13 +14,15 @@ const { formatInviteCode } = require("../lib/codes");
 
 const store = open();
 
+// Fixed codes so local manual testing has stable handles. Real codes are random
+// (see lib/codes.js) — these are only ever used against a dev database.
 const demo = [
-  { name: "Alice Anderson", plus_ones_allotted: 1, invite_code: "10000001" },
-  { name: "Bob & Betty Brown", plus_ones_allotted: 1, invite_code: "10000002" },
-  { name: "The Garcia Family", plus_ones_allotted: 3, invite_code: "10000003" },
-  { name: "John Smith", plus_ones_allotted: 1, invite_code: "10000004", disambiguation_hint: "Oak Street" },
-  { name: "John Smith", plus_ones_allotted: 0, invite_code: "10000005", disambiguation_hint: "Elm Avenue" },
-  { name: "Solo Sasha", plus_ones_allotted: 0, invite_code: "10000006" },
+  { name: "Alice Anderson", plus_ones_allotted: 1, invite_code: "1000000001" },
+  { name: "Bob & Betty Brown", plus_ones_allotted: 1, invite_code: "1000000002" },
+  { name: "The Garcia Family", plus_ones_allotted: 3, invite_code: "1000000003" },
+  { name: "John Smith", plus_ones_allotted: 1, invite_code: "1000000004", disambiguation_hint: "Oak Street" },
+  { name: "John Smith", plus_ones_allotted: 0, invite_code: "1000000005", disambiguation_hint: "Elm Avenue" },
+  { name: "Solo Sasha", plus_ones_allotted: 0, invite_code: "1000000006" },
 ];
 
 let added = 0;

@@ -6,7 +6,7 @@ const request = require("supertest");
 
 const { open } = require("../lib/db");
 const { createApp } = require("../lib/app");
-const { generateInviteCode, formatInviteCode } = require("../lib/codes");
+const { generateInviteCode, formatInviteCode, CODE_DIGITS } = require("../lib/codes");
 const { normalizeCode, lookupInvitee } = require("../lib/matching");
 const { exportCatererCsv } = require("../lib/csv");
 
@@ -206,23 +206,26 @@ test("the honeypot field is silently ignored", async () => {
 
 // --- Priority 2: invite codes ----------------------------------------------
 
-test("2. generated codes are 8 digits; format is dashed; normalize strips punctuation", () => {
+// Derived from CODE_DIGITS so changing the code length doesn't need test edits.
+const CODE_RE = new RegExp(`^\\d{${CODE_DIGITS}}$`);
+
+test("2. generated codes are the configured length; format is dashed; normalize strips punctuation", () => {
   for (let i = 0; i < 200; i++) {
     const code = generateInviteCode();
-    assert.match(code, /^\d{8}$/, "code must be exactly 8 digits");
+    assert.match(code, CODE_RE, `code must be exactly ${CODE_DIGITS} digits`);
   }
-  assert.equal(formatInviteCode("12345678"), "1234-5678");
-  assert.equal(normalizeCode("1234-5678"), "12345678");
-  assert.equal(normalizeCode("  1234 5678 "), "12345678");
+  assert.equal(formatInviteCode("1234567890"), "12345-67890");
+  assert.equal(normalizeCode("12345-67890"), "1234567890");
+  assert.equal(normalizeCode("  12345 67890 "), "1234567890");
   assert.equal(normalizeCode("ABC"), "");
 });
 
-test("2. new invitees are auto-assigned a unique 8-digit code when none is given", () => {
+test("2. new invitees are auto-assigned a unique code when none is given", () => {
   const store = open(":memory:");
   const a = store.createInvitee({ name: "No Code One" });
   const b = store.createInvitee({ name: "No Code Two" });
-  assert.match(a.invite_code, /^\d{8}$/);
-  assert.match(b.invite_code, /^\d{8}$/);
+  assert.match(a.invite_code, CODE_RE);
+  assert.match(b.invite_code, CODE_RE);
   assert.notEqual(a.invite_code, b.invite_code);
 });
 

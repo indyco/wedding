@@ -4,7 +4,7 @@ A small, self-hosted wedding RSVP site: a pre-loaded guest list with per-guest +
 
 ## Features
 
-- Guests find themselves by their **invite code** (8 digits, shown dashed as `1234-5678`). Code is the only lookup path — name lookup was removed so the guest list can't be enumerated.
+- Guests find themselves by their **invite code** (10 digits, shown dashed as `12345-67890`). Code is the only lookup path — name lookup was removed so the guest list can't be enumerated.
 - RSVP yes/no; if yes, name each attendee (up to the invitee's +1 allotment) with optional dietary notes.
 - Guests can edit their response later via a private link emailed to them.
 - Admin dashboard: manage the guest list and +1 allotments, RSVP on a guest's behalf, import/export CSV (incl. a caterer-only dietary export), view/filter responses and headcounts, and send a broadcast email to attending guests.
@@ -26,7 +26,7 @@ npm run seed-demo       # optional: load a few demo invitees for local testing
 
 On first start an admin account is created from `ADMIN_USERNAME` / `ADMIN_PASSWORD`. Change the credentials anytime from the dashboard, or run `npm run reset-admin` on the server.
 
-To try the app with sample data, run `npm run seed-demo`. It loads a handful of demo invitees and prints their invite codes (e.g. `1000-0001` for Alice, `1000-0003` for the Garcia family) so you can exercise the guest lookup and RSVP flow immediately. It's idempotent (skips codes that already exist) and is intended for local testing only — never run it against production data.
+To try the app with sample data, run `npm run seed-demo`. It loads a handful of demo invitees and prints their invite codes (e.g. `10000-00001` for Alice, `10000-00003` for the Garcia family) so you can exercise the guest lookup and RSVP flow immediately. It's idempotent (skips codes that already exist) and is intended for local testing only — never run it against production data.
 
 ## Configuration
 
@@ -52,7 +52,7 @@ All configuration is via environment variables (see `.env.example`). **Never com
 
 All runtime data lives in a single SQLite file at `data/wedding.db` (gitignored). Back it up regularly — e.g. a nightly copy of the file, or Litestream for continuous replication on Linux.
 
-**Invite codes.** New invitees are assigned a random 8-digit code (CSPRNG) automatically. `npm run regen-codes` assigns codes to any invitee missing one; `npm run regen-codes -- --all` re-rolls every code (do this only before invites are printed — it invalidates any already handed out).
+**Invite codes.** New invitees are assigned a random 10-digit code (CSPRNG) automatically — a 10^10 space, so guessing is impractical against the public rate limit. The code is the only way a guest reaches their RSVP, so its length is load-bearing; change `CODE_DIGITS` in `lib/codes.js` only upward. `node scripts/regen-codes.js` assigns codes to any invitee missing one; adding `--all --yes` re-rolls every code (only before invites are printed — it invalidates any already handed out).
 
 **Post-wedding purge.** `npm run purge` prints a dry run of what would be removed. `npm run purge -- --yes` clears personal data (attendee names, dietary notes, emails, messages) while keeping aggregate headcounts; add `--hard` to also delete all RSVP/attendee rows and anonymize invitee names. Dietary notes can imply health/religion data, so purge once you no longer need the details.
 
@@ -70,9 +70,9 @@ This repo is public, so secrets and allow-lists are never committed:
 
 - `.env`, the SQLite DB, logs, and any `cloudflared` credentials are gitignored.
 - The Cloudflare Access email allow-list is configured in Cloudflare, not in code.
-- Disambiguation hints are shown to **unauthenticated** visitors who look up a
-  duplicated name, so keep them vague (“college friend”), never addresses or
-  other personal details.
+- Disambiguation hints are admin-only notes and are never returned to guests
+  (name lookup was removed), so they're safe for whatever helps you tell
+  same-named guests apart.
 
 ## Project layout
 

@@ -24,7 +24,7 @@
 
   // ---- Lookup screen ------------------------------------------------------
   function renderLookup(message, messageKind) {
-    const code = h("input", { type: "text", name: "code", inputmode: "numeric", placeholder: "e.g. 1234-5678", autocomplete: "off" });
+    const code = h("input", { type: "text", name: "code", inputmode: "numeric", placeholder: "e.g. 12345-67890", autocomplete: "off" });
     const hp = honeypot();
     const errorSlot = h("div", {});
 
