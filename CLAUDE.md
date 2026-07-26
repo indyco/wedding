@@ -8,7 +8,7 @@ UI in `public/` (no build step, no framework). Node >= 20. Repo
 
 - `npm start` — run (http://localhost:3000); `npm run dev` — watch mode.
 - `npm test` — full suite (`node --test` + supertest); `node --test test/rsvp.test.js` — one file.
-- `npm run reset-admin` | `seed-demo` | `backup`. No linter configured.
+- `npm run reset-admin` | `seed-demo` | `regen-codes` | `purge` | `backup`. No linter configured.
 - `node scripts/regen-invite-codes.js --yes` — rewrite every invite code (pre-send
   only). Call node directly: PowerShell swallows the `--` in `npm run regen-codes -- --yes`.
 
@@ -21,9 +21,11 @@ UI in `public/` (no build step, no framework). Node >= 20. Repo
   `invite_code` on create (and when one is cleared) — never leave an invitee without one.
 - `lib/routes.public.js` — `/api/lookup`, `/api/rsvp`. Both close once
   `RSVP_DEADLINE` passes (403/410 with `closed: true`), which also expires edit links.
-- `lib/routes.admin.js` — invitee CRUD, CSV import/export, summary, rsvps,
-  broadcast (+test), email-log (all require admin session).
-- `lib/matching.js` — lookup by code/name + disambiguation hints.
+- `lib/routes.admin.js` — invitee CRUD, RSVP-on-behalf, CSV import/export
+  (+caterer dietary export), summary, rsvps, broadcast (+test), email-log
+  (all require admin session).
+- `lib/matching.js` — lookup by invite code only (name lookup removed).
+  `lib/codes.js` — CSPRNG 8-digit invite-code generation + dashed formatting.
 - `lib/email.js` — Resend; logs to console when no API key. `lib/csv.js` — CSV import/export.
 - `public/` — `index.html`+`js/guest.js` (guest flow), `admin.html`+`js/admin.js`
   (dashboard tabs), `js/common.js` (`h`/`api`/`clearNode`), `css/styles.css`.
